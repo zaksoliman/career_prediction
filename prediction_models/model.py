@@ -14,15 +14,15 @@ class Model:
     def __init__(self, config):
 
         # Place Holders
-        #self.keep_prob = tf.placeholder(tf.float32)
+        self.keep_prob = tf.placeholder(tf.float32)
         self.job_input_data = tf.placeholder(tf.int32, [None, config.job_length], name="job_input_data")
 
-        batch_size = self.job_input_data.shape[0].value
-        if batch_size is None:
-            batch_size = config.batch_size
+        #batch_size = self.job_input_data.shape[0].value
+        #if batch_size is None:
+        #    batch_size = config.batch_size
 
         self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
-        self.target = tf.placeholder(tf.int32, [batch_size])
+        self.target = tf.placeholder(tf.int32, [None])
 
         with tf.device("/cpu:0"):
             job_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
@@ -44,7 +44,7 @@ class Model:
             elif config.rnn_type == 'RNN':
                 cell = tf.nn.rnn_cell.BasicRNNCell(config.hidden_dim)
 
-            #cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
+            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
 
             if config.use_attention:
                 outputs, _ = tf.nn.dynamic_rnn(cell, self.job_input, sequence_length=self.job_length, dtype=tf.float32,
@@ -153,7 +153,7 @@ class TaggerConfigEnglish(object):
     keep_prob = 0.5
     job_length = 32
     batch_size = 100
-    job_num = 100000
+    job_num = 0
     hidden_dim = 128
     emb_dim = 50
     encoder = "rnn"  # averaging rnn biRnn
@@ -167,13 +167,12 @@ class TaggerConfigEnglish(object):
     max_grad_norm = 5
     n_epochs = 50
     log_interval = 2000
-    max_train_batches = 10
+    max_train_batches = -1
 
 
 def train(config):
     id_to_job, data_train, data_test = loader.load_data(config)
 
-    config.target_num = 4
     config.job_num = len(id_to_job)
 
     print("Creating batchers")
@@ -209,7 +208,7 @@ def train(config):
                                             model.job_input_data: job_input_data,
                                             model.job_length: job_length,
                                             model.target: target
-                                            #model.keep_prob: config.keep_prob
+                                            model.keep_prob: config.keep_prob
                                         })
 
                 # Compute average loss
@@ -236,12 +235,13 @@ def train(config):
                 with tf.device("/cpu:0"):
                     job_input_data, job_length, target = test_batcher.next()
 
-                cost, acc = sess.run([model.loss, model.accuracy],
+                cost, correct_pred, acc = sess.run([model.loss, model.correct_pred, model.accuracy],
                                      {model.job_input_data: job_input_data,
                                       model.job_length: job_length,
-                                      model.target: target
-                                      # model.keep_prob: 1.0
-                                     })
+                                      model.target: target,
+                                      model.keep_prob: 1.0})
+
+                print (correct_pred[:20])
 
             #                     if e % 10 == 0:
             #                         save_path = saver.save(sess, "model/model.ckpt")
