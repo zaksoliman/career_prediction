@@ -240,7 +240,8 @@ def train(config):
                                      {model.job_input_data: job_input_data,
                                       model.job_length: job_length,
                                       model.target: target
-                                      #model.keep_prob: 1.0})
+                                      # model.keep_prob: 1.0
+                                     })
 
             #                     if e % 10 == 0:
             #                         save_path = saver.save(sess, "model/model.ckpt")
