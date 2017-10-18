@@ -230,7 +230,7 @@ def train(config):
 
             for _ in range(test_batcher.max_batch_num):
                 with tf.device("/cpu:0"):
-                    job_input_data, target, job_length = test_batcher.next()
+                    job_input_data, job_length, target = test_batcher.next()
 
                 cost, acc = sess.run([model.loss, model.accuracy],
                                      {model.job_input_data: job_input_data, model.job_length: job_length,
