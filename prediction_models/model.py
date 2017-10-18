@@ -22,7 +22,7 @@ class Model:
             batch_size = config.batch_size
 
         self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
-        self.target = tf.placeholder(tf.int32, [batch_size])
+        self.target = tf.placeholder(tf.int32, [None])
 
         with tf.device("/cpu:0"):
             job_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
