@@ -21,7 +21,7 @@ class Model:
         if batch_size is None:
             batch_size = config.batch_size
 
-        self.job_length = tf.placeholder(tf.int32, [batch_size], name="job_length")
+        self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
         self.target = tf.placeholder(tf.int32, [batch_size])
 
         with tf.device("/cpu:0"):
@@ -202,11 +202,15 @@ def train(config):
             batch = 0
             for _ in range(train_batcher.max_batch_num):
                 with tf.device("/cpu:0"):
-                    job_input_data, target, job_length = train_batcher.next()
+                    job_input_data, job_length, target = train_batcher.next()
 
                 cost, _, acc = sess.run([model.loss, model.train_op, model.accuracy],
-                                        {model.job_input_data: job_input_data, model.job_length: job_length,
-                                         model.target: target, model.target: target, model.keep_prob: config.keep_prob})
+                                        {
+                                            model.job_input_data: job_input_data,
+                                            model.job_length: job_length,
+                                            model.target: target,
+                                            model.keep_prob: config.keep_prob
+                                        })
 
                 # Compute average loss
                 avg_cost += cost
@@ -233,8 +237,10 @@ def train(config):
                     job_input_data, job_length, target = test_batcher.next()
 
                 cost, acc = sess.run([model.loss, model.accuracy],
-                                     {model.job_input_data: job_input_data, model.job_length: job_length,
-                                      model.target: target, model.target: target, model.keep_prob: 1.0})
+                                     {model.job_input_data: job_input_data,
+                                      model.job_length: job_length,
+                                      model.target: target,
+                                      model.keep_prob: 1.0})
 
             #                     if e % 10 == 0:
             #                         save_path = saver.save(sess, "model/model.ckpt")
