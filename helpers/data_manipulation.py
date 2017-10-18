@@ -16,7 +16,7 @@ def build_job_title_sequences():
 
     print('Building mapping between job title name and a job title id')
     job_titles = data.function.unique()
-    title_id = {title: i for i, title in enumerate(job_titles)}
+    title_id = {title: i + 1 for i, title in enumerate(job_titles)}
 
     print('Getting list of job titles for every profile id')
     func_series = data.groupby('_id')['function'].apply(list)
