@@ -1,0 +1,7 @@
+tensorflow
+numpy
+sklearn
+pandas
+ipython
+jupyter
+jupyter-tensorboard
