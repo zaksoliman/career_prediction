@@ -14,7 +14,7 @@ class Model:
     def __init__(self, config):
 
         # Place Holders
-        self.keep_prob = tf.placeholder(tf.float32)
+        #self.keep_prob = tf.placeholder(tf.float32)
         self.job_input_data = tf.placeholder(tf.int32, [None, config.job_length], name="job_input_data")
 
         batch_size = self.job_input_data.shape[0].value
@@ -44,7 +44,7 @@ class Model:
             elif config.rnn_type == 'RNN':
                 cell = tf.nn.rnn_cell.BasicRNNCell(config.hidden_dim)
 
-            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
+            #cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
 
             if config.use_attention:
                 outputs, _ = tf.nn.dynamic_rnn(cell, self.job_input, sequence_length=self.job_length, dtype=tf.float32,
@@ -208,8 +208,8 @@ def train(config):
                                         {
                                             model.job_input_data: job_input_data,
                                             model.job_length: job_length,
-                                            model.target: target,
-                                            model.keep_prob: config.keep_prob
+                                            model.target: target
+                                            #model.keep_prob: config.keep_prob
                                         })
 
                 # Compute average loss
@@ -239,8 +239,8 @@ def train(config):
                 cost, acc = sess.run([model.loss, model.accuracy],
                                      {model.job_input_data: job_input_data,
                                       model.job_length: job_length,
-                                      model.target: target,
-                                      model.keep_prob: 1.0})
+                                      model.target: target
+                                      #model.keep_prob: 1.0})
 
             #                     if e % 10 == 0:
             #                         save_path = saver.save(sess, "model/model.ckpt")
