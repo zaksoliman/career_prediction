@@ -11,13 +11,20 @@ from time import time
 
 
 class Model:
-    def __init__(self, config):
+    def __init__(self, data, target):
+
+        self.data = data
+        self.target = target
+        self.keep_prob = None
+        self.titles_input_data = None
+        self.job_length = None
+
+    def graph(self, config):
 
         # Keep probability for the dropout
         self.keep_prob = tf.placeholder(tf.float32)
         # Our list of job title sequences
         self.titles_input_data = tf.placeholder(tf.int32, [None, config.step_num], name="job_input_data")
-        #
         self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
         self.target = tf.placeholder(tf.int32, [None])
 
