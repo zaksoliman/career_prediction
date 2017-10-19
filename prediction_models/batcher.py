@@ -28,9 +28,9 @@ class Batcher:
         for i in range(batch_size):
             # TODO: Clean up (max length)
             example = self.data[self.batch_num * self.batch_size + i]
-            padding = self.step_num - len(example)
-            job_input[i, :len(self.data)-1] = example[:-1] + [0] * padding
-            job_length[i] = len(self.data[self.batch_num * self.batch_size + i])-1
+            inp = example[:-1]
+            job_input[i, :len(inp)] = inp
+            job_length[i] = len(inp)
             target[i] = example[-1]
 
         if self.batch_num == self.max_batch_num-1 or self.max_batch_num == 0:

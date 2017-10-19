@@ -15,7 +15,7 @@ class Model:
 
         # Place Holders
         self.keep_prob = tf.placeholder(tf.float32)
-        self.job_input_data = tf.placeholder(tf.int32, [None, config.job_length], name="job_input_data")
+        self.job_input_data = tf.placeholder(tf.int32, [None, config.step_num], name="job_input_data")
 
         #batch_size = self.job_input_data.shape[0].value
         #if batch_size is None:
@@ -25,11 +25,14 @@ class Model:
         self.target = tf.placeholder(tf.int32, [None])
 
         with tf.device("/cpu:0"):
-            job_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
 
-            #             job_embedding = tf.get_variable(name="job_embedding", shape=[config.job_num, config.emb_dim]
-            #                                 ,dtype=data_type(), initializer=tf.constant_initializer(embeddings_matrix)
-            #                                  , trainable=True)
+            if  not config.use_emb :
+                job_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
+            else:
+                job_embedding = tf.get_variable(name="job_embedding", shape=[config.job_num, config.emb_dim],
+                                                dtype=tf.float32,
+                                                initializer=tf.contrib.layers.xavier_initializer(),
+                                                trainable=True)
 
             self.job_input = tf.nn.embedding_lookup(job_embedding, self.job_input_data)
 
@@ -60,7 +63,7 @@ class Model:
             if config.rnn_type == 'LSTM':
                 self.representation = self.representation.h
 
-        elif config.encoder == "biRnn":
+        elif config.encoder == "birnn":
 
             if config.rnn_type == 'LSTM':
                 cell_fw = tf.nn.rnn_cell.LSTMCell(config.hidden_dim)
@@ -82,7 +85,7 @@ class Model:
                                                              parallel_iterations=1024)
 
                 birnn = tf.transpose(tf.concat([outputs[0], outputs[1]], 2), perm=[1, 0, 2])
-                self.representation, _ = self.attentive_sum(birnn, input_dim=config.hidden_dim * 2,
+                self.representation, _ = attentive_sum(birnn, input_dim=config.hidden_dim * 2,
                                                             hidden_dim=config.att_dim)
 
             else:
@@ -107,7 +110,7 @@ class Model:
             tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target))
 
         # regularization
-        self.loss += tf.add_n([tf.nn.l2_loss(v) for v in tvars if "Bias" not in v.name]) * config.l2_norm
+        # self.loss += tf.add_n([tf.nn.l2_loss(v) for v in tvars if "Bias" not in v.name]) * config.l2_norm
 
         optimizer = tf.train.AdamOptimizer(config.lr)  # GradientDescentOptimizer RMSPropOptimizer
         grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), config.max_grad_norm)
@@ -151,29 +154,29 @@ class TaggerConfigEnglish(object):
     # Hyper params
 
     keep_prob = 0.5
-    job_length = 32
     batch_size = 100
     job_num = 0
-    hidden_dim = 128
+    hidden_dim = 1024
     emb_dim = 50
     encoder = "rnn"  # averaging rnn biRnn
     rnn_type = 'LSTM'
     l2_norm = 0.001
-    step_num = 32
+    step_num = 31
     use_attention = False
     att_dim = 100
-    lr = 0.1
-    restore = None  # "/u/ghaddara/workspace/TensorFlow/model"
+    lr = 0.001
+    restore = "/data/rali7/Tmp/solimanz/data/models"
     max_grad_norm = 5
-    n_epochs = 50
-    log_interval = 2000
+    n_epochs = 100
+    log_interval = 200
     max_train_batches = -1
+    use_emb = False
 
 
 def train(config):
     id_to_job, data_train, data_test = loader.load_data(config)
 
-    config.job_num = len(id_to_job)
+    config.job_num = len(id_to_job)+1
 
     print("Creating batchers")
     train_batcher = Batcher(config, data_train)
@@ -189,8 +192,13 @@ def train(config):
 
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
-        if config.restore is not None:
-            saver.restore(sess, 'model.ckpt')
+        path = os.path.join(config.restore, config.encoder +
+                            config.rnn_type +
+                            str(config.hidden_dim) +
+                            str(config.use_emb) +
+                            str(config.use_attention) + ".ckpt")
+        if config.restore is not None and os.path.isfile(path):
+            saver.restore(sess, path)
             print("model restored")
 
         for e in range(config.n_epochs):
@@ -207,7 +215,7 @@ def train(config):
                                         {
                                             model.job_input_data: job_input_data,
                                             model.job_length: job_length,
-                                            model.target: target
+                                            model.target: target,
                                             model.keep_prob: config.keep_prob
                                         })
 
@@ -218,18 +226,18 @@ def train(config):
                 if batch % config.log_interval == 0 and batch > 0:
                     cur_loss = avg_cost / batch  # config.log_interval
                     cur_acc = avg_acc / batch
-                    elapsed = time.time() - start_time
+                    elapsed = time() - start_time
                     print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:1.5f} | ms/batch {:5.2f} | '
-                          'loss {:5.6f} | ppl {:8.2f}'.format(
+                          'loss {:5.6f} | acc {:8.2f}'.format(
                         e, batch, config.max_train_batches // config.batch_size, config.lr,
                                   elapsed * 1000 / config.log_interval, cur_loss, cur_acc))
 
-                    start_time = time.time()
+                    start_time = time()
 
                 batch += 1
                 if config.max_train_batches != -1 and batch == config.max_train_batches:
                     break
-            print("Epoch:", '%04d' % (e + 1), "cost=", "{:.9f}".format(avg_cost), "Accuracy=", "{:.9f}".format(avg_acc))
+            print("Epoch:", '%04d' % (e + 1), "cost=", "{:.5f}".format(avg_cost/batch), "Accuracy=", "{:.2f}".format(avg_acc/batch))
 
             for _ in range(test_batcher.max_batch_num):
                 with tf.device("/cpu:0"):
@@ -241,13 +249,15 @@ def train(config):
                                       model.target: target,
                                       model.keep_prob: 1.0})
 
-                print (correct_pred[:20])
+            if e % 10 == 0:
+                save_path = saver.save(sess, os.path.join(config.restore, config.encoder +
+                                                          config.rnn_type +
+                                                          str(config.hidden_dim) +
+                                                          str(config.use_emb) +
+                                                          str(config.use_attention) + ".ckpt"))
+                print("model saved in file: %s" % save_path)
 
-            #                     if e % 10 == 0:
-            #                         save_path = saver.save(sess, "model/model.ckpt")
-            #                 print("model saved in file: %s" % save_path)
-
-            print('Cost on test:', cost, 'Accuracy on dev:', acc)
+            print('Cost on test:', cost, 'Accuracy on test:', acc)
 
 
 def main():
