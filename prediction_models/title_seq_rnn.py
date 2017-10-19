@@ -13,10 +13,11 @@ from time import time
 class Model:
     def __init__(self, config):
 
-        # Place Holders
+        # Keep probability for the dropout
         self.keep_prob = tf.placeholder(tf.float32)
+        # Our list of job title sequences
         self.titles_input_data = tf.placeholder(tf.int32, [None, config.step_num], name="job_input_data")
-
+        #
         self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
         self.target = tf.placeholder(tf.int32, [None])
 
@@ -117,6 +118,8 @@ class Model:
         self.correct_pred = tf.equal(tf.cast(tf.argmax(self.distribution, 1), tf.int32), self.target)
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
+    def loss(self):
+        pass
 
 def weight_variable(shape):
     return tf.get_variable(name=id_generator(), shape=shape, initializer=tf.contrib.layers.xavier_initializer())
@@ -149,10 +152,10 @@ class TaggerConfigEnglish(object):
 
     # Hyper params
 
-    keep_prob = 0.25
+    keep_prob = 0.5
     batch_size = 100
     job_num = 0
-    hidden_dim = 2048
+    hidden_dim = 1024
     emb_dim = 50
     encoder = "rnn"  # averaging rnn biRnn
     rnn_type = 'LSTM'
@@ -163,7 +166,7 @@ class TaggerConfigEnglish(object):
     lr = 0.001
     restore = "/data/rali7/Tmp/solimanz/data/models"
     max_grad_norm = 5
-    n_epochs = 500
+    n_epochs = 100
     log_interval = 200
     max_train_batches = -1
     use_emb = False
