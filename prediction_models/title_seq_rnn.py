@@ -11,100 +11,79 @@ from time import time
 
 
 class Model:
-    def __init__(self, data, target):
+    def __init__(self, data, target,
+                 use_dropout=False, keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100,
+                 use_embedding=False, embedding_dim=50, rnn_cell_type='GRU', max_timesteps=31, learning_rate=0.001,
+                 batch_size=50, n_epochs=100, log_interval=200):
 
         self.data = data
         self.target = target
-        self.keep_prob = None
         self.titles_input_data = None
-        self.job_length = None
+        self.seq_lengths = None
+        self.log_interval = log_interval
+        self.title_emb_input = None
 
-    def graph(self, config):
+        self.keep_prob = keep_prob
+        self.use_dropout = use_dropout
+        self.use_embedding= use_embedding
+        self.rnn_cell_type = rnn_cell_type
+        self.emb_dim = embedding_dim
+        self.max_timesteps = max_timesteps
+        self.batch_size = batch_size
+        self.hidden_dim = hidden_dim
+        self.lr = learning_rate
+        self.use_att = use_attention
+        self.att_dim = attention_dim
+
+
+        self.data_path = "/data/rali7/Tmp/solimanz/data/datasets/title_seq.json"
+        self.store = "/data/rali7/Tmp/solimanz/data/models"
+
+
+    def predict(self, config):
 
         # Keep probability for the dropout
         self.keep_prob = tf.placeholder(tf.float32)
         # Our list of job title sequences
-        self.titles_input_data = tf.placeholder(tf.int32, [None, config.step_num], name="job_input_data")
-        self.job_length = tf.placeholder(tf.int32, [None], name="job_length")
+        self.titles_input_data = tf.placeholder(tf.int32, [None, config.step_num], name="titles_input_data")
+        self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
         self.target = tf.placeholder(tf.int32, [None])
 
+        # Do embedding
         with tf.device("/cpu:0"):
-
-            if  not config.use_emb :
-                job_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
+            if not config.use_emb:
+                title_embedding = tf.Variable(tf.eye(config.job_num), trainable=False)
             else:
-                job_embedding = tf.get_variable(name="job_embedding", shape=[config.job_num, config.emb_dim],
+                title_embedding = tf.get_variable(name="job_embedding",
+                                                shape=[config.job_num, config.emb_dim],
                                                 dtype=tf.float32,
                                                 initializer=tf.contrib.layers.xavier_initializer(),
                                                 trainable=True)
 
-            self.job_input = tf.nn.embedding_lookup(job_embedding, self.titles_input_data)
+            self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data)
 
-        if config.encoder == "averaging":
-            self.representation = tf.add_n(self.job_input)
+        if config.rnn_type == 'LSTM':
+            cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
+        elif config.rnn_type == 'RNN':
+            cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_dim)
+        else:
+            cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
 
-        elif config.encoder == "rnn":
-            if config.rnn_type == 'LSTM':
-                cell = tf.nn.rnn_cell.LSTMCell(config.hidden_dim)
-            elif config.rnn_type == 'GRU':
-                cell = tf.nn.rnn_cell.GRUCell(config.hidden_dim)
-            elif config.rnn_type == 'RNN':
-                cell = tf.nn.rnn_cell.BasicRNNCell(config.hidden_dim)
-
+        if self.use_dropout:
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
 
-            if config.use_attention:
-                outputs, _ = tf.nn.dynamic_rnn(cell, self.job_input, sequence_length=self.job_length, dtype=tf.float32,
-                                               parallel_iterations=1024)
-                birnn = tf.transpose(outputs, perm=[1, 0, 2])
-                self.representation, _ = self.attentive_sum(birnn, input_dim=config.hidden_dim,
-                                                            hidden_dim=config.att_dim)
+        _, self.representation = tf.nn.dynamic_rnn(cell,
+                                                   self.title_emb_input,
+                                                   sequence_length=self.seq_lengths,
+                                                   dtype=tf.float32,
+                                                   parallel_iterations=1024)
 
-            else:
-                _, self.representation = tf.nn.dynamic_rnn(cell, self.job_input, sequence_length=self.job_length,
-                                                           dtype=tf.float32, parallel_iterations=1024)
+        if config.rnn_type == 'LSTM':
+            self.representation = self.representation.h
 
-            if config.rnn_type == 'LSTM':
-                self.representation = self.representation.h
-
-        elif config.encoder == "birnn":
-
-            if config.rnn_type == 'LSTM':
-                cell_fw = tf.nn.rnn_cell.LSTMCell(config.hidden_dim)
-                cell_bw = tf.nn.rnn_cell.LSTMCell(config.hidden_dim)
-            elif config.rnn_type == 'GRU':
-                cell_fw = tf.nn.rnn_cell.GRUCell(config.hidden_dim)
-                cell_bw = tf.nn.rnn_cell.GRUCell(config.hidden_dim)
-            elif config.rnn_type == 'RNN':
-                cell_fw = tf.nn.rnn_cell.BasicRNNCell(config.hidden_dim)
-                cell_bw = tf.nn.rnn_cell.BasicRNNCell(config.hidden_dim)
-
-            cell_fw = tf.nn.rnn_cell.DropoutWrapper(cell_fw,
-                                                    output_keep_prob=self.keep_prob)  # input_keep_prob=self.keep_prob,
-            cell_bw = tf.nn.rnn_cell.DropoutWrapper(cell_bw, output_keep_prob=self.keep_prob)
-
-            if config.use_attention:
-                outputs, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.job_input,
-                                                             sequence_length=self.job_length, dtype=tf.float32,
-                                                             parallel_iterations=1024)
-
-                birnn = tf.transpose(tf.concat([outputs[0], outputs[1]], 2), perm=[1, 0, 2])
-                self.representation, _ = attentive_sum(birnn, input_dim=config.hidden_dim * 2,
-                                                            hidden_dim=config.att_dim)
-
-            else:
-                _, output_states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, self.job_input,
-                                                                   sequence_length=self.job_length, dtype=tf.float32,
-                                                                   parallel_iterations=1024)
-                fwd_out_all, bwd_out_all = output_states
-
-                if config.rnn_type == 'LSTM':
-                    fwd_out_all = fwd_out_all.h
-                    bwd_out_all = bwd_out_all.h
-
-                self.representation = tf.concat([fwd_out_all, bwd_out_all], 1)
-
-        self.logit = tf.layers.dense(self.representation, config.job_num, activation=None,
+        self.logit = tf.layers.dense(self.representation,
+                                     config.job_num,
+                                     activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer())
 
@@ -112,9 +91,6 @@ class Model:
         tvars = tf.trainable_variables()
         self.loss = tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target))
-
-        # regularization
-        # self.loss += tf.add_n([tf.nn.l2_loss(v) for v in tvars if "Bias" not in v.name]) * config.l2_norm
 
         optimizer = tf.train.AdamOptimizer(config.lr)  # GradientDescentOptimizer RMSPropOptimizer
         grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), config.max_grad_norm)
@@ -128,31 +104,8 @@ class Model:
     def loss(self):
         pass
 
-def weight_variable(shape):
-    return tf.get_variable(name=id_generator(), shape=shape, initializer=tf.contrib.layers.xavier_initializer())
-
-
-def id_generator(size=3, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
-
-
-def attentive_sum(inputs, input_dim, hidden_dim):
-    with tf.variable_scope("attention"):
-        seq_length = inputs.shape[0].value
-        W = weight_variable((input_dim, hidden_dim))
-        U = weight_variable((hidden_dim, 1))
-        tf.get_variable_scope().reuse_variables()
-        temp1 = [tf.nn.tanh(tf.matmul(inputs[i], W)) for i in range(seq_length)]
-        temp2 = [tf.matmul(temp1[i], U) for i in range(seq_length)]
-
-        pre_activations = tf.concat(temp2, 1)
-
-        attentions = tf.split(tf.nn.softmax(pre_activations), seq_length, 1)
-        weighted_inputs = [tf.multiply(inputs[i], attentions[i]) for i in range(seq_length)]
-        output = tf.add_n(weighted_inputs)
-
-    return output, attentions
-
+    def train(self):
+        pass
 
 class TaggerConfigEnglish(object):
     data_path = "/data/rali7/Tmp/solimanz/data/datasets/title_seq.json"
@@ -177,7 +130,6 @@ class TaggerConfigEnglish(object):
     log_interval = 200
     max_train_batches = -1
     use_emb = False
-
 
 def train(config):
     id_to_job, data_train, data_test = loader.load_data(config)
@@ -220,7 +172,7 @@ def train(config):
                 cost, _, acc = sess.run([model.loss, model.train_op, model.accuracy],
                                         {
                                             model.titles_input_data: job_input_data,
-                                            model.job_length: job_length,
+                                            model.seq_lengths: job_length,
                                             model.target: target,
                                             model.keep_prob: config.keep_prob
                                         })
@@ -251,7 +203,7 @@ def train(config):
 
                 cost, correct_pred, acc = sess.run([model.loss, model.correct_pred, model.accuracy],
                                      {model.titles_input_data: job_input_data,
-                                      model.job_length: job_length,
+                                      model.seq_lengths: job_length,
                                       model.target: target,
                                       model.keep_prob: 1.0})
 
@@ -265,11 +217,9 @@ def train(config):
 
             print('Cost on test:', cost, 'Accuracy on test:', acc)
 
-
 def main():
     config = TaggerConfigEnglish()
     train(config)
-
 
 if __name__ == "__main__":
     main()
