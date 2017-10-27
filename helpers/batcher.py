@@ -2,6 +2,7 @@ import numpy as np
 import math
 from random import shuffle
 
+
 class Batcher:
    
     def __init__(self, config, data):

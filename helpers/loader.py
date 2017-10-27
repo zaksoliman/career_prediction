@@ -1,14 +1,23 @@
 import json
+from bidict import bidict
 
 
-def load_data(config):  
+def load_data(data_path):
+    """
 
-    # load Mapping 
+    :param data_path: full path to the json serialized file
+    :return: tuple:
+        - title_to_id: bidict mapping
+        - train_data: list -> sequences of title ids
+        - test_dat: list -> sequences of title ids
+
+    """
+
     print("Loading mapping and data")
-    with open(config.data_path) as data_file:    
-        dico = json.load(data_file)
+    with open(data_path) as data_file:
+        data = json.load(data_file)
         
-    id_to_job = dico['title_to_id']
-    train_data, test_data = dico['train_data'], dico['test_data']
+    title_to_id = bidict(data['title_to_id'])
+    train_data, test_data = data['train_data'], data['test_data']
     
-    return id_to_job, train_data, test_data
+    return title_to_id, train_data, test_data

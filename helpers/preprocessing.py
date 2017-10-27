@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import json
 import pickle
+import argparse
 
 
 def preprocess_job_title_sequences(data_path):
@@ -38,5 +39,6 @@ def preprocess_job_title_sequences(data_path):
         json.dump(data, f)
 
 if __name__ == '__main__':
+
     data_path = "../../data/datasets/"
     preprocess_job_title_sequences(data_path)
