@@ -5,3 +5,4 @@ pandas
 ipython
 jupyter
 jupyter-tensorboard
+bidict

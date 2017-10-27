@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os, random, string
-from batcher import Batcher
-import loader
+from helpers.batcher import Batcher
+import helpers.loader as loader
 from time import time
 
 
