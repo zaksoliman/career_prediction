@@ -72,16 +72,16 @@ class Model:
         if self.use_dropout:
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
 
-        _, self.representation = tf.nn.dynamic_rnn(cell,
-                                                   self.title_emb_input,
-                                                   sequence_length=self.seq_lengths,
-                                                   dtype=tf.float32,
-                                                   parallel_iterations=1024)
+        self.output, self.state = tf.nn.dynamic_rnn(cell,
+                                                    self.title_emb_input,
+                                                    sequence_length=self.seq_lengths,
+                                                    dtype=tf.float32,
+                                                    parallel_iterations=1024)
 
         if config.rnn_type == 'LSTM':
-            self.representation = self.representation.h
+            self.state = self.state.h
 
-        self.logit = tf.layers.dense(self.representation,
+        self.logit = tf.layers.dense(self.state,
                                      config.job_num,
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
