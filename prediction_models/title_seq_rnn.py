@@ -15,9 +15,10 @@ class Model:
     def __init__(self, data_path="/data/rali7/Tmp/solimanz/data/datasets/title_seq.json", use_dropout=False, n_titles=550,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=False,
                  embedding_dim=50, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=50,
-                 n_epochs=100, log_interval=200, restore=False, store="/data/rali7/Tmp/solimanz/data/models"):
+                 n_epochs=100, store_interval=200, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 log_dir="/data/rali7/Tmp/solimanz/tf_logs/",):
 
-        self.log_interval = log_interval
+        self.sotre_interval = store_interval
         self.restore = restore
         self.keep_prob = keep_prob
         self.use_dropout = use_dropout
@@ -33,7 +34,8 @@ class Model:
         self.use_att = use_attention
         self.att_dim = attention_dim
         self.data_path = data_path
-        self.store = store
+        self.store_dir = store_dir
+        self.log_dir = log_dir
 
     def predict(self):
 
@@ -43,27 +45,28 @@ class Model:
         self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps], name="titles_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
-        self.labels = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
+        self.target = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
 
         # Do embedding
         with tf.device("/cpu:0"):
-            if not self.use_emb:
-                title_embedding = tf.Variable(tf.eye(self.n_titles), trainable=False)
-            else:
+            if self.use_embedding:
                 title_embedding = tf.get_variable(name="job_embedding",
-                                                shape=[self.n_titles, self.emb_dim],
-                                                dtype=tf.float32,
-                                                initializer=tf.contrib.layers.xavier_initializer(),
-                                                trainable=True)
+                                                  shape=[self.n_titles, self.emb_dim],
+                                                  dtype=tf.float32,
+                                                  initializer=tf.contrib.layers.xavier_initializer(),
+                                                  trainable=True)
+            else:
+                title_embedding = tf.Variable(tf.eye(self.n_titles), trainable=False)
+
 
             self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data)
 
         # Decide on out RNN cell type
-        if self.rnn_type == 'GRU':
+        if self.rnn_cell_type == 'GRU':
             cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
-        elif self.rnn_type == 'RNN':
+        elif self.rnn_cell_type == 'RNN':
             cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_dim)
-        else:
+        elif self.rnn_cell_type == 'LSTM':
             cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
 
         # Adding dropout
@@ -75,29 +78,21 @@ class Model:
                                                     sequence_length=self.seq_lengths,
                                                     dtype=tf.float32,
                                                     parallel_iterations=1024)
-
-        #if config.rnn_type == 'LSTM':
-        #    self.state = self.state.h
-
-        self.logit = tf.layers.dense(self.state,
+        self.logit = tf.layers.dense(self.output,
                                      self.n_titles,
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer())
+        self.prediction = tf.nn.softmax(self.logit)
 
-        return self.logit
+        return self.prediction
 
     def loss(self):
-        # Loss Function
-        tvars = tf.trainable_variables()
-        self.loss = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target))
+        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target)
+        self.loss = tf.reduce_mean(self.loss)
 
-        optimizer = tf.train.AdamOptimizer(config.lr)  # GradientDescentOptimizer RMSPropOptimizer
-        grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), config.max_grad_norm)
-        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
-        #         self.train_op = optimizer.minimize(self.loss)
-
+        optimizer = tf.train.AdamOptimizer(self.lr)  # GradientDescentOptimizer RMSPropOptimizer
+        self.train_op = optimizer.minimize(self.loss)
         self.distribution = tf.nn.softmax(self.logit)
         self.correct_pred = tf.equal(tf.cast(tf.argmax(self.distribution, 1), tf.int32), self.target)
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
@@ -146,14 +141,14 @@ class Model:
                     avg_cost += cost
                     avg_acc += acc
 
-                    if batch % self.log_interval == 0 and batch > 0:
+                    if batch % self.sotre_interval == 0 and batch > 0:
                         cur_loss = avg_cost / batch  # config.log_interval
                         cur_acc = avg_acc / batch
                         elapsed = time() - start_time
                         print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:1.5f} | ms/batch {:5.2f} | '
                               'loss {:5.6f} | acc {:8.2f}'.format(
                             e, batch, self.max_train_batches / self.batch_size, self.lr,
-                                      elapsed * 1000 / self.log_interval, cur_loss, cur_acc))
+                                      elapsed * 1000 / self.sotre_interval, cur_loss, cur_acc))
 
                         start_time = time()
 
