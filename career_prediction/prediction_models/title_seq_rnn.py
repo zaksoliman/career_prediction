@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os, random, string
-from helpers.batcher import Batcher
-import helpers.loader as loader
+from .helpers.batcher import Batcher
+import .helpers.loader as loader
 from time import time
 
 
@@ -188,6 +188,7 @@ class Model:
                     print("model saved in file: %s" % save_path)
 
 def main():
+    path = "/data/rali7/Tmp/solimanz/data/dataset/title_seq.json"
     mapping, train_data, test_data = loader.load_data()
     seq_model = Model(train_data=train_data)
     seq_model.train()
