@@ -49,4 +49,4 @@ def preprocess_job_title_sequences(data_path="/data/rali7/Tmp/solimanz/data/pick
 if __name__ == '__main__':
 
     data_path = "../../data/datasets/"
-    preprocess_job_title_sequences(data_path="../../data/", save_path=data_path)
+    preprocess_job_title_sequences()

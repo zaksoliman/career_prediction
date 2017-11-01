@@ -159,7 +159,6 @@ class Model:
                 avg_loss = 0
                 avg_acc = 0
                 for _ in range(train_batcher.max_batch_num):
-                    print(f"batch number {train_batcher.batch_num}")
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
