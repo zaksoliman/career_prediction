@@ -14,11 +14,11 @@ class Model:
 
     def __init__(self, data, target, class_mapping, use_dropout=False, n_titles=550,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=False,
-                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=31, learning_rate=0.001, batch_size=50,
-                 n_epochs=100, store_interval=200, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                 log_dir="/data/rali7/Tmp/solimanz/tf_logs/",):
+                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=32, learning_rate=0.001, batch_size=50,
+                 n_epochs=100, log_interval=200, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 log_dir="../.log/",):
 
-        self.store_interval = store_interval
+        self.log_interval = log_interval
         self.titles_to_id = class_mapping
         self.restore = restore
         self.keep_prob = keep_prob
@@ -89,6 +89,17 @@ class Model:
 
         return self.prediction
 
+    def cost(self, output, target):
+        # Compute cross entropy for each frame.
+        cross_entropy = target * tf.log(output)
+        cross_entropy = -tf.reduce_sum(cross_entropy, 2)
+        mask = tf.sign(tf.reduce_max(tf.abs(target), 2))
+        cross_entropy *= mask
+        # Average over actual sequence lengths.
+        cross_entropy = tf.reduce_sum(cross_entropy, 1)
+        cross_entropy /= tf.reduce_sum(mask, 1)
+        return tf.reduce_mean(cross_entropy)
+
     def loss(self):
         self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target)
         self.loss = tf.reduce_mean(self.loss)
@@ -140,11 +151,11 @@ class Model:
                                                 self.dropout: self.keep_prob
                                             })
 
-                    if batch % self.store_interval == 0 and batch > 0:
+                    if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
                             f'| epoch {e} | {batch}/{self.batch_size} batches | lr {self.lr} | '
-                            f'ms/batch {elapsed * 1000 / self.store_interval} | loss {loss} | acc {acc}')
+                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss} | acc {acc}')
 
                         start_time = time()
 

@@ -7,7 +7,7 @@ import argparse
 
 def preprocess_job_title_sequences(data_path="/data/rali7/Tmp/solimanz/data/pickles/",
                                    save_path="/data/rali7/Tmp/solimanz/data/datasets/",
-                                   offset=True, save=True, for_rnn=False):
+                                   offset=False, save=True):
 
     print('Reading test and train ids...')
     with open(os.path.join(data_path, "train_ids.pkl"), "rb") as f:
@@ -49,4 +49,4 @@ def preprocess_job_title_sequences(data_path="/data/rali7/Tmp/solimanz/data/pick
 if __name__ == '__main__':
 
     data_path = "../../data/datasets/"
-    preprocess_job_title_sequences(for_rnn=True)
+    preprocess_job_title_sequences(data_path="../../data/", save_path=data_path)
