@@ -119,8 +119,19 @@ class Model:
         return tf.reduce_mean(cross_entropy)
 
     def _loss(self):
-        cross_entropy = -tf.reduce_sum(self.target_one_hot * tf.log(self.prediction), [1, 2])
+        #cross_entropy = -tf.reduce_sum(self.target_one_hot * tf.log(self.prediction), [1, 2])
+        #self.cross_entropy = tf.reduce_mean(cross_entropy)
+
+        # Compute cross entropy for each frame.
+        cross_entropy = self.target_one_hot * tf.log(self.prediction)
+        cross_entropy = -tf.reduce_sum(cross_entropy, 2)
+        mask = tf.sign(tf.reduce_max(tf.abs(self.target_one_hot), 2))
+        cross_entropy *= mask
+        # Average over actual sequence lengths.
+        cross_entropy = tf.reduce_sum(cross_entropy, 1)
+        cross_entropy /= tf.reduce_sum(mask, 1)
         self.cross_entropy = tf.reduce_mean(cross_entropy)
+
         return self.cross_entropy
 
     def _optimize(self):
@@ -129,8 +140,15 @@ class Model:
 
     def _accuracy(self):
         correct = tf.equal(
-            tf.argmax(self.target, output_type=tf.int32), tf.argmax(self.prediction, 2, output_type=tf.int32))
-        self.accuracy = tf.reduce_mean(tf.cast(correct, tf.int32))
+            tf.argmax(self.target_one_hot, 2, output_type=tf.int32), tf.argmax(self.prediction, 2, output_type=tf.int32))
+        correct = tf.cast(correct, tf.float32)
+        mask = tf.sign(tf.reduce_max(tf.abs(self.target_one_hot), reduction_indices=2))
+        correct *= mask
+        # Average over actual sequence lengths.
+        correct = tf.reduce_sum(correct, reduction_indices=1)
+        correct /= tf.cast(self.seq_lengths, tf.float32)
+        self.accuracy =  tf.reduce_mean(correct)
+
         return self.accuracy
 
     def train(self):
@@ -173,7 +191,7 @@ class Model:
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
-                            f'| epoch {e} | {train_batcher.batch_num}/{self.batch_size} batches | lr {self.lr} | '
+                            f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
                             f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss} | acc {acc}')
 
                         start_time = time()
