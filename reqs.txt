@@ -6,3 +6,5 @@ ipython
 jupyter
 jupyter-tensorboard
 bidict
+matplotlib
+scipy

@@ -5,7 +5,9 @@ import pickle
 import argparse
 
 
-def preprocess_job_title_sequences(data_path):
+def preprocess_job_title_sequences(data_path="/data/rali7/Tmp/solimanz/data/pickles/",
+                                   save_path="/data/rali7/Tmp/solimanz/data/datasets/",
+                                   offset=False, save=True):
 
     print('Reading test and train ids...')
     with open(os.path.join(data_path, "train_ids.pkl"), "rb") as f:
@@ -18,7 +20,10 @@ def preprocess_job_title_sequences(data_path):
 
     print('Building mapping between job title name and a job title id...')
     job_titles = data.function.unique()
-    title_id = {title: i + 1 for i, title in enumerate(job_titles)}
+    if offset:
+        title_id = {title: i + 1 for i, title in enumerate(job_titles)}
+    else:
+        title_id = {title: i for i, title in enumerate(job_titles)}
 
     print('Getting list of job titles for every profile id')
     func_series = data.groupby('_id')['function'].apply(lambda x: list(reversed(list(x))))
@@ -35,10 +40,13 @@ def preprocess_job_title_sequences(data_path):
         'test_data': test_data
     }
 
-    with open(os.path.join(data_path, "title_seq.json"), 'w') as f:
-        json.dump(data, f)
+    if(save):
+        with open(os.path.join(save_path, "title_seq.json"), 'w') as f:
+            json.dump(data, f)
+    else:
+        return data
 
 if __name__ == '__main__':
 
     data_path = "../../data/datasets/"
-    preprocess_job_title_sequences(data_path)
+    preprocess_job_title_sequences()
