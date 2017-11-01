@@ -63,7 +63,7 @@ class Model:
             cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
         elif self.rnn_type == 'RNN':
             cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_dim)
-        else:
+        elif self.rnn_type == 'LSTM':
             cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
 
         # Adding dropout
