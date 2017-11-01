@@ -35,7 +35,7 @@ class Batcher:
             target = example[1:]
             seqs[i, :len(seq)] = seq
             seqs_length[i] = len(seq)
-            target[i, len(target)] = target
+            targets[i, :len(target)] = target
 
         if self.batch_num == self.max_batch_num or self.max_batch_num == 0:
             self.batch_num = 0

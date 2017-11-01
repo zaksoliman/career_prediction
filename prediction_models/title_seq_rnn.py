@@ -45,10 +45,15 @@ class Model:
     def build_model(self):
         self._predict()
         self._loss()
-
+        self._accuracy()
+        self._optimize()
 
     def _predict(self):
+        """
+        Build the inference graph
 
+        :return:
+        """
         # Keep probability for the dropout
         self.dropout = tf.placeholder(tf.float32)
         # Our list of job title sequences (padded to max_timesteps)
@@ -114,15 +119,19 @@ class Model:
         return tf.reduce_mean(cross_entropy)
 
     def _loss(self):
-
         cross_entropy = -tf.reduce_sum(self.target_one_hot * tf.log(self.prediction), [1, 2])
         self.cross_entropy = tf.reduce_mean(cross_entropy)
-        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(self.cross_entropy)
-        self.distribution = tf.nn.softmax(self.logit)
-        self.correct_pred = tf.equal(tf.argmax(self.distribution, 1, output_type=tf.int32), self.target)
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
-
         return self.cross_entropy
+
+    def _optimize(self):
+        self.optimize = tf.train.AdamOptimizer(self.lr).minimize(self.cross_entropy)
+        return self.optimize
+
+    def _accuracy(self):
+        correct = tf.equal(
+            tf.argmax(self.target, output_type=tf.int32), tf.argmax(self.prediction, 2, output_type=tf.int32))
+        self.accuracy = tf.reduce_mean(tf.cast(correct, tf.int32))
+        return self.accuracy
 
     def train(self):
 
@@ -150,10 +159,11 @@ class Model:
                 avg_loss = 0
                 avg_acc = 0
                 for _ in range(train_batcher.max_batch_num):
+                    print(f"batch number {train_batcher.batch_num}")
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc = sess.run([self.cross_entropy, self.train_op, self.accuracy],
+                    loss, _, acc = sess.run([self.cross_entropy, self.optimize, self.accuracy],
                                             {
                                                 self.titles_input_data: title_seq,
                                                 self.seq_lengths: seq_lengths,
@@ -178,8 +188,8 @@ class Model:
                     print("model saved in file: %s" % save_path)
 
 def main():
-    data = loader.load_data("../../data/datasets/title_seq.json")
-    seq_model = Model(train_data=data)
+    mapping, train_data, test_data = loader.load_data()
+    seq_model = Model(train_data=train_data)
     seq_model.train()
 
 
