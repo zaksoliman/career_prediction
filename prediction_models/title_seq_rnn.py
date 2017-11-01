@@ -12,10 +12,10 @@ from time import time
 
 class Model:
 
-    def __init__(self, data, target, class_mapping, use_dropout=False, n_titles=550,
+    def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=False, n_titles=550,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=False,
                  embedding_dim=50, rnn_cell_type='GRU', max_timesteps=32, learning_rate=0.001, batch_size=50,
-                 n_epochs=100, log_interval=200, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 n_epochs=100, log_interval=200, store_model=False, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir="../.log/",):
 
         self.log_interval = log_interval
@@ -34,12 +34,20 @@ class Model:
         self.lr = learning_rate
         self.use_att = use_attention
         self.att_dim = attention_dim
-        self.data = data
-        self.target = target
+        self.train_data = train_data
+        self.test_data = test_data
         self.store_dir = store_dir
         self.log_dir = log_dir
+        self.store = store_model
 
-    def predict(self):
+        self.build_model()
+
+    def build_model(self):
+        self._predict()
+        self._loss()
+
+
+    def _predict(self):
 
         # Keep probability for the dropout
         self.dropout = tf.placeholder(tf.float32)
@@ -52,7 +60,7 @@ class Model:
         # Do embedding
         with tf.device("/cpu:0"):
             if self.use_embedding:
-                title_embedding = tf.get_variable(name="job_embedding",
+                title_embedding = tf.get_variable(name="title_embedding",
                                                   shape=[self.n_titles, self.emb_dim],
                                                   dtype=tf.float32,
                                                   initializer=tf.contrib.layers.xavier_initializer(),
@@ -60,16 +68,17 @@ class Model:
             else:
                 title_embedding = tf.Variable(tf.eye(self.n_titles), trainable=False)
 
-
+            # tile_emb_input has shape batch_size x times steps x 550 (one hot vector dimensions)
             self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data)
+            self.target_one_hot = tf.nn.embedding_lookup(title_embedding, self.target)
 
         # Decide on out RNN cell type
-        if self.rnn_cell_type == 'GRU':
-            cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
-        elif self.rnn_cell_type == 'RNN':
+        if self.rnn_cell_type == 'RNN':
             cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_dim)
         elif self.rnn_cell_type == 'LSTM':
             cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
+        else: # Default to GRU
+            cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
 
         # Adding dropout
         if self.use_dropout:
@@ -80,16 +89,20 @@ class Model:
                                                     sequence_length=self.seq_lengths,
                                                     dtype=tf.float32,
                                                     parallel_iterations=1024)
-        self.logit = tf.layers.dense(self.output,
+
+        output = tf.reshape(self.output, [-1, self.hidden_dim])
+        self.logit = tf.layers.dense(output,
                                      self.n_titles,
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer())
+
         self.prediction = tf.nn.softmax(self.logit)
+        self.prediction = tf.reshape(self.prediction, [-1, self.max_timesteps, self.n_titles])
 
         return self.prediction
 
-    def cost(self, output, target):
+    def _cost(self, output, target):
         # Compute cross entropy for each frame.
         cross_entropy = target * tf.log(output)
         cross_entropy = -tf.reduce_sum(cross_entropy, 2)
@@ -100,25 +113,22 @@ class Model:
         cross_entropy /= tf.reduce_sum(mask, 1)
         return tf.reduce_mean(cross_entropy)
 
-    def loss(self):
-        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit, labels=self.target)
-        self.loss = tf.reduce_mean(self.loss)
+    def _loss(self):
 
-        optimizer = tf.train.AdamOptimizer(self.lr)  # GradientDescentOptimizer RMSPropOptimizer
-        self.train_op = optimizer.minimize(self.loss)
+        cross_entropy = -tf.reduce_sum(self.target_one_hot * tf.log(self.prediction), [1, 2])
+        self.cross_entropy = tf.reduce_mean(cross_entropy)
+        self.train_op = tf.train.AdamOptimizer(self.lr).minimize(self.cross_entropy)
         self.distribution = tf.nn.softmax(self.logit)
-        self.correct_pred = tf.equal(tf.cast(tf.argmax(self.distribution, 1), tf.int32), self.target)
+        self.correct_pred = tf.equal(tf.argmax(self.distribution, 1, output_type=tf.int32), self.target)
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
-        return self.loss
+        return self.cross_entropy
 
     def train(self):
 
-        train_data, test_data = self.data["train_data"], self.data["test_data"]
-
         print("Creating batchers")
-        train_batcher = Batcher(self, train_data)
-        test_batcher = Batcher(self, test_data)
+        train_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data)
+        #test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=test_data)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto()
@@ -143,7 +153,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc = sess.run([self.loss, self.train_op, self.accuracy],
+                    loss, _, acc = sess.run([self.cross_entropy, self.train_op, self.accuracy],
                                             {
                                                 self.titles_input_data: title_seq,
                                                 self.seq_lengths: seq_lengths,
@@ -163,24 +173,14 @@ class Model:
 
                 print(f"Epoch:, {(e + 1)}")
 
-                for _ in range(test_batcher.max_batch_num):
-                    with tf.device("/cpu:0"):
-                        job_input_data, job_length, target = test_batcher.next()
-
-                    cost, correct_pred, acc = sess.run([self.loss, self.correct_pred, self.accuracy],
-                                                       {self.titles_input_data: job_input_data,
-                                                        self.seq_lengths: job_length,
-                                                        self.target: target,
-                                                        self.dropout: 1.0})
-
-                if e % 10 == 0:
+                if self.store and e % 10 == 0:
                     save_path = saver.save(sess, path)
                     print("model saved in file: %s" % save_path)
 
-                print('Cost on test: {cost} Accuracy on test: {acc}')
-
 def main():
-    seq_model = Model()
+    data = loader.load_data("../../data/datasets/title_seq.json")
+    seq_model = Model(train_data=data)
+    seq_model.train()
 
 
 if __name__ == "__main__":
