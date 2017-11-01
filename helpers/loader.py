@@ -19,5 +19,6 @@ def load_data(data_path):
         
     title_to_id = bidict(data['title_to_id'])
     train_data, test_data = data['train_data'], data['test_data']
+
     
     return title_to_id, train_data, test_data
