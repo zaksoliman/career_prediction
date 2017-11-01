@@ -13,9 +13,9 @@ from time import time
 class Model:
 
     def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=False, n_titles=550,
-                 keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=False,
-                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=32, learning_rate=0.001, batch_size=50,
-                 n_epochs=100, log_interval=200, store_model=False, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 keep_prob=0.5, hidden_dim=550, use_attention=False, attention_dim=100, use_embedding=False,
+                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=32, learning_rate=0.001, batch_size=100,
+                 n_epochs=500, log_interval=200, store_model=False, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir="../.log/",):
 
         self.log_interval = log_interval
@@ -173,7 +173,7 @@ class Model:
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
-                            f'| epoch {e} | {batch}/{self.batch_size} batches | lr {self.lr} | '
+                            f'| epoch {e} | {train_batcher.batch_num}/{self.batch_size} batches | lr {self.lr} | '
                             f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss} | acc {acc}')
 
                         start_time = time()
@@ -187,8 +187,8 @@ class Model:
                     print("model saved in file: %s" % save_path)
 
 def main():
-    path = "/data/rali7/Tmp/solimanz/data/dataset/title_seq.json"
-    mapping, train_data, test_data = load_data()
+    path = "../../data/datasets/title_seq.json"
+    mapping, train_data, test_data = load_data(path)
     seq_model = Model(train_data=train_data)
     seq_model.train()
 
