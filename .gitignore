@@ -96,3 +96,6 @@ ENV/
 
 *.pkl
 project/data/
+
+.log/
+log_bak/
