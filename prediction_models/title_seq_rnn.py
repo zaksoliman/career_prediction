@@ -18,7 +18,7 @@ class Model:
     def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=True, n_titles=550,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True,
                  embedding_dim=1024, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
-                 n_epochs=800, log_interval=150, store_model=False, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 n_epochs=800, log_interval=150, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir=".log/",):
 
         self.log_interval = log_interval
@@ -172,9 +172,9 @@ class Model:
             sess.run(tf.global_variables_initializer())
             saver = tf.train.Saver()
             path = os.path.join(self.store_dir, f"{self.hparams}.ckpt")
-            if self.restore is not None and os.path.isfile(path):
+            if self.restore and os.path.isfile(path):
                 saver.restore(sess, path)
-                print("model restored")
+                print("**model restored")
 
             self.writer.add_graph(sess.graph)
 
@@ -232,38 +232,6 @@ class Model:
                     save_path = saver.save(sess, path)
                     print("model saved in file: %s" % save_path)
 
-def print_dists(title_to_id, seq_length, input_seq, prediction, targets, rand=True, f_name="dist"):
-
-    sample_idx = random.sample(range(len(prediction)), 5)
-    sample_predictions = prediction[sample_idx]
-    sample_targets = targets[sample_idx]
-    sample_input = input_seq[sample_idx]
-    y = np.argmax(sample_targets, axis=2)
-    sample_top_pred = np.argsort(sample_predictions)[:,:,:3]
-    with open(f_name + ".txt", "w") as f:
-        i = 0
-        for sorted_idx, dists in zip(sample_top_pred, sample_predictions):
-            f.write("Input:\n")
-            f.write(str([title_to_id.inv[ts] for ts in sample_input[i][:seq_length[i]]]) + "\n")
-            f.write("Targets\n")
-            f.write(str([title_to_id.inv[ts] for ts in y[i][:seq_length[i]]]) + "\n")
-            f.write("Prediction:\n")
-            pprint(str([[(title_to_id.inv[t_idx], dists[t, t_idx]) for t_idx in time_step] for t, time_step in enumerate(sorted_idx)]) +"\n\n", f)
-
-            i += 0
-
-
-def print_output(title_to_id, seq_length, input_seq, prediction, targets, rand=True, f_name="out"):
-    preds = np.argmax(prediction, axis=2)
-    y = np.argmax(targets, axis=2)
-    with open(f_name + ".txt", "w") as f:
-        for i, ex in enumerate(preds):
-            f.write("Input:\n")
-            f.write(str([title_to_id.inv[ts] for ts in input_seq[i][:seq_length[i]]]) + "\n")
-            f.write("Prediction:\n")
-            f.write(str([title_to_id.inv[ts] for ts in ex[:seq_length[i]]]) +"\n")
-            f.write("Targets\n")
-            f.write(str([title_to_id.inv[ts] for ts in y[i][:seq_length[i]]]) + "\n\n")
 
 def main():
     path = "../../data/datasets/title_seq.json"

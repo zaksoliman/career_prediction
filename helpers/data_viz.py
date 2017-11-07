@@ -34,3 +34,36 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
+
+def print_dists(title_to_id, seq_length, input_seq, prediction, targets, rand=True, f_name="dist"):
+
+    sample_idx = random.sample(range(len(prediction)), 5)
+    sample_predictions = prediction[sample_idx]
+    sample_targets = targets[sample_idx]
+    sample_input = input_seq[sample_idx]
+    y = np.argmax(sample_targets, axis=2)
+    sample_top_pred = np.argsort(sample_predictions)[:, :, :3]
+    with open(f_name + ".txt", "w") as f:
+        i = 0
+        for sorted_idx, dists in zip(sample_top_pred, sample_predictions):
+            f.write("Input:\n")
+            f.write(str([title_to_id.inv[ts] for ts in sample_input[i][:seq_length[i]]]) + "\n")
+            f.write("Targets\n")
+            f.write(str([title_to_id.inv[ts] for ts in y[i][:seq_length[i]]]) + "\n")
+            f.write("Prediction:\n")
+            pprint(str([[(title_to_id.inv[t_idx], dists[t, t_idx]) for t_idx in time_step] for t, time_step in
+                        enumerate(sorted_idx)]) + "\n\n", f)
+
+            i += 0
+
+def print_output(title_to_id, seq_length, input_seq, prediction, targets, rand=True, f_name="out"):
+    preds = np.argmax(prediction, axis=2)
+    y = np.argmax(targets, axis=2)
+    with open(f_name + ".txt", "w") as f:
+        for i, ex in enumerate(preds):
+            f.write("Input:\n")
+            f.write(str([title_to_id.inv[ts] for ts in input_seq[i][:seq_length[i]]]) + "\n")
+            f.write("Prediction:\n")
+            f.write(str([title_to_id.inv[ts] for ts in ex[:seq_length[i]]]) + "\n")
+            f.write("Targets\n")
+            f.write(str([title_to_id.inv[ts] for ts in y[i][:seq_length[i]]]) + "\n\n")
