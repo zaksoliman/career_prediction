@@ -14,7 +14,7 @@ class Model:
 
     def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=False, n_titles=550,
                  keep_prob=0.5, hidden_dim=550, use_attention=False, attention_dim=100, use_embedding=False,
-                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=32, learning_rate=0.001, batch_size=100,
+                 embedding_dim=50, rnn_cell_type='GRU', max_timesteps=31, learning_rate=0.001, batch_size=100,
                  n_epochs=500, log_interval=200, store_model=False, restore=False, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir="../.log/",):
 
