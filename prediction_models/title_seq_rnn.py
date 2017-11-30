@@ -3,6 +3,7 @@ import os, random, string
 from helpers.loader import load_data
 from helpers.batcher import Batcher
 from time import time
+#from helpers.data_viz import print_dists
 import numpy as np
 import random
 from pprint import pprint
@@ -15,10 +16,10 @@ from pprint import pprint
 
 class Model:
 
-    def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=True, n_titles=550,
+    def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=True, n_titles=550, num_layers=1,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True,
-                 embedding_dim=1024, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
-                 n_epochs=800, log_interval=150, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
+                 embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
+                 n_epochs=800, log_interval=200, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir=".log/",):
 
         self.log_interval = log_interval
@@ -42,7 +43,8 @@ class Model:
         self.store_dir = store_dir
         self.log_dir = log_dir
         self.store = store_model
-        self.hparams = f"title_seq_{rnn_cell_type}_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}" \
+        self.num_layers = num_layers
+        self.hparams = f"title_seq_{rnn_cell_type}_{num_layers}_layers_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}" \
                        f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
 
         self.build_model()
@@ -85,15 +87,17 @@ class Model:
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
-            cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_dim)
+            get_cell = tf.nn.rnn_cell.BasicRNNCell
         elif self.rnn_cell_type == 'LSTM':
-            cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
+            get_cell = tf.nn.rnn_cell.LSTMCell
         else: # Default to GRU
-            cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
+            get_cell = tf.nn.rnn_cell.GRUCell
 
-        # Adding dropout
+        cells = [get_cell(self.hidden_dim) for _ in range(self.num_layers)]
         if self.use_dropout:
-            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.dropout)
+            cells = [tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.dropout) for cell in cells]
+
+        cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
         self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
                                                     self.title_emb_input,
@@ -224,7 +228,7 @@ class Model:
                     if test_acc > 0:
                         avg_acc.append(test_acc)
 
-                    print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
+                    #print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
                     self.writer.add_summary(test_summ, tb)
 
                 print(f"Accuracy on test: {sum(avg_acc) / len(avg_acc)}")
@@ -234,9 +238,9 @@ class Model:
 
 
 def main():
-    path = "../../data/datasets/title_seq.json"
+    path = "/data/rali7/Tmp/solimanz/data/datasets/1/title_sequences.json"
     mapping, train_data, test_data = load_data(path)
-    seq_model = Model(train_data=train_data)
+    seq_model = Model(train_data=train_data, num_layers=2)
     seq_model.train()
 
 
