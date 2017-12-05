@@ -305,8 +305,6 @@ class Model:
                                                 self.dropout: self.keep_prob
                                             })
 
-                    self.writer.add_summary(summary, b)
-
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
