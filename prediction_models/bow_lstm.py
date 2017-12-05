@@ -20,7 +20,7 @@ class Model:
                  use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100,
                  use_embedding=True, max_grad_norm=5, embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=33,
                  learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, restore=True,
-                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log/", name=''):
+                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log_test/", name=''):
 
         self.log_interval = log_interval
         self.titles_to_id = class_mapping
@@ -165,12 +165,12 @@ class Model:
             correct = tf.equal(
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
-            correct = tf.cast(correct, tf.int32)
+            correct = tf.cast(correct, tf.float32)
             mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= tf.cast(mask, dtype=tf.int32)
+            correct *= tf.cast(mask, tf.float32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
-            correct /= self.seq_lengths
+            correct /= tf.cast(self.seq_lengths, tf.float32)
             self.accuracy =  tf.reduce_mean(correct)
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
@@ -285,18 +285,22 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy,
-                                                                 self.top_2_acc,
-                                                                 self.top_3_acc,
-                                                                 self.top_4_acc,
-                                                                 self.top_5_acc,
-                                                                 self.train_summ_op],
-                                            {
-                                                self.titles_input_data: title_seq,
-                                                self.seq_lengths: seq_lengths,
-                                                self.target_inputs: targets,
-                                                self.dropout: self.keep_prob
-                                            })
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                        self.cross_entropy,
+                        self.optimize,
+                        self.accuracy,
+                        self.top_2_acc,
+                        self.top_3_acc,
+                        self.top_4_acc,
+                        self.top_5_acc,
+                        self.train_summ_op
+                    ],
+                        {
+                            self.titles_input_data: title_seq,
+                            self.seq_lengths: seq_lengths,
+                            self.target_inputs: targets,
+                            self.dropout: self.keep_prob
+                        })
 
                     self.writer.add_summary(summary, b)
 
@@ -323,19 +327,22 @@ class Model:
                     with tf.device("/cpu:0"):
                         test_title_seq, test_seq_lengths, test_target = test_batcher.next()
 
-                    test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([self.accuracy,
-                                                                                                          self.top_2_acc,
-                                                                                                          self.top_3_acc,
-                                                                                                          self.top_4_acc,
-                                                                                                          self.top_5_acc,
-                                                                                                          self.test_summ_op,
-                                                                                                          self.prediction],
-                                                   {
-                                                       self.titles_input_data: test_title_seq,
-                                                       self.seq_lengths: test_seq_lengths,
-                                                       self.target_inputs: test_target,
-                                                       self.dropout: 1.0
-                                                   })
+                    test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([
+                        self.accuracy,
+                        self.top_2_acc,
+                        self.top_3_acc,
+                        self.top_4_acc,
+                        self.top_5_acc,
+                        self.test_summ_op,
+                        self.prediction
+                    ],
+                        {
+                            self.titles_input_data: test_title_seq,
+                            self.seq_lengths: test_seq_lengths,
+                            self.target_inputs: test_target,
+                            self.dropout: 1.0
+                        })
+
                     if test_acc > 0:
                         avg_acc.append(test_acc)
                     if test_top_2 > 0:
