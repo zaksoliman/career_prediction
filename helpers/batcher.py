@@ -50,13 +50,13 @@ class Batcher:
 class BOW_Batcher:
 
     def __init__(self, batch_size, step_num, input_data, target_data, n_classes, vocab_size, concat=False, shuffle=False, shuffle_seed=123):
-
+        print("Building batcher")
         self.input_data = input_data  # sorted(self.data, key=lambda x: len(x), reverse=True)
         self.target_data = target_data
         if len(self.input_data) != len(self.target_data):
             print("Data not same size!!!")
         self.vocab_size = vocab_size
-        self.num_of_samples = len(self.data)
+        self.num_of_samples = len(self.input_data)
         self.batch_size = batch_size
         self.batch_num = 0
         self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
