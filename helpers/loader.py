@@ -20,8 +20,8 @@ def load_data(data_path, bow=False):
 
     title_to_id = bidict(data['title_to_id'])
 
-    if "maximum_seq_length" in data:
-        max_seq_len = data["maximum_seq_length"]
+    if "maximum_seq_len" in data:
+        max_seq_len = data["maximum_seq_len"]
     else:
         max_seq_len = 33
 
