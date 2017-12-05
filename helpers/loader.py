@@ -31,7 +31,7 @@ def load_data(data_path, bow=False):
         test_inputs = data["test_inputs"]
         test_targets = data["test_targets"]
         vocab_id = data["vocab_id"]
-        return  train_inputs, train_targets, test_inputs, test_targets, vocab_id
+        return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, vocab_id, max_seq_len
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len
