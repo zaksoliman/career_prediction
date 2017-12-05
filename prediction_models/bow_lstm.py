@@ -96,7 +96,7 @@ class Model:
         with tf.device("/cpu:0"):
             onehot = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
             # tile_emb_input has shape batch_size x times steps x emb_dim
-            self.targets = tf.nn.embedding_lookup(onehot, self.targets, name="encoded_in_seq")
+            self.targets = tf.nn.embedding_lookup(onehot, self.target_inputs, name="onehot_encoded_seq")
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
@@ -165,9 +165,9 @@ class Model:
             correct = tf.equal(
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
-            correct = tf.cast(correct, tf.float32)
+            correct = tf.cast(correct, tf.int16)
             mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= tf.cast(mask, tf.float32)
+            correct *= mask
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
             correct /= tf.cast(self.seq_lengths, tf.float32)
