@@ -167,7 +167,7 @@ class Model:
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
             correct = tf.cast(correct, tf.int16)
             mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= mask
+            correct *= tf.cast(mask, dtype=tf.int16)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
             correct /= tf.cast(self.seq_lengths, tf.float32)
