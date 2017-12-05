@@ -88,7 +88,7 @@ class Model:
         # Keep probability for the dropout
         self.dropout = tf.placeholder(tf.float32, name="dropout_prob")
         # Our list of job title sequences (padded to max_timesteps)
-        self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps, self.vocab_size], name="titles_input_data")
+        self.titles_input_data = tf.placeholder(tf.float32, [None, self.max_timesteps, self.vocab_size], name="titles_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
         self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
@@ -107,6 +107,7 @@ class Model:
             get_cell = tf.nn.rnn_cell.GRUCell
 
         cells = [get_cell(self.hidden_dim) for _ in range(self.num_layers)]
+
         if self.use_dropout:
             cells = [tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.dropout) for cell in cells]
 
