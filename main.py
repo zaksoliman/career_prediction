@@ -5,8 +5,8 @@ import sys
 
 def main():
 
-    ds = sys.argv[2]
-    model = sys.argv[1]
+    ds = sys.argv[1]
+    #model = sys.argv[1]
 
     model_names = {
         '1': '',
