@@ -285,7 +285,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, pred, targets = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -293,7 +293,9 @@ class Model:
                         self.top_3_acc,
                         self.top_4_acc,
                         self.top_5_acc,
-                        self.train_summ_op
+                        self.train_summ_op,
+                        self.prediction,
+                        self.targets
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -301,6 +303,9 @@ class Model:
                             self.target_inputs: targets,
                             self.dropout: self.keep_prob
                         })
+
+                    print(f"Prediction shape:{pred.shape}")
+                    print(f"Target shape: {targets.shape}")
 
                     self.writer.add_summary(summary, b)
 
