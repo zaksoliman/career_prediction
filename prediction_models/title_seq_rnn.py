@@ -75,6 +75,7 @@ class Model:
             self.test_top_4_summ,
             self.test_top_5_summ])
         self.writer = tf.summary.FileWriter(os.path.join(self.log_dir, self.hparams))
+        self.saver = tf.train.Saver()
 
     def _predict(self):
         """
