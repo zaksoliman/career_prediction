@@ -72,7 +72,7 @@ class BOW_Batcher:
             batch_size = self.num_of_samples - (self.batch_size * (self.max_batch_num - 1))
 
         input_seqs = np.zeros((batch_size, self.step_num, self.vocab_size), dtype=np.int32)
-        targets = np.zeros((batch_size, self.step_num, self.n_classes), dtype=np.int32)
+        targets = np.zeros((batch_size, self.step_num), dtype=np.int32)
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
@@ -83,7 +83,7 @@ class BOW_Batcher:
                 input_seqs[i][j][bow] = 1
 
             seqs_length[i] = len(input_seq)
-            targets[i, :len(target_seq), :] = self.one_hot_lookup[target_seq]
+            targets[i, :len(target_seq), :] = target_seq
 
         if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
             self.batch_num = 0

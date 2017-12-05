@@ -91,12 +91,12 @@ class Model:
         self.titles_input_data = tf.placeholder(tf.float32, [None, self.max_timesteps, self.vocab_size], name="titles_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
-        self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
+        self.target_inputs = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
         # Do embedding
         with tf.device("/cpu:0"):
             onehot = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
             # tile_emb_input has shape batch_size x times steps x emb_dim
-            self.targets_onehot = tf.nn.embedding_lookup(onehot, self.targets, name="encoded_in_seq")
+            self.targets = tf.nn.embedding_lookup(onehot, self.targets, name="encoded_in_seq")
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
@@ -283,7 +283,7 @@ class Model:
                 for b in range(train_batcher.max_batch_num):
 
                     with tf.device("/cpu:0"):
-                        title_seq, seq_lengths, target = train_batcher.next()
+                        title_seq, seq_lengths, targets = train_batcher.next()
 
                     loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy,
                                                                  self.top_2_acc,
@@ -294,7 +294,7 @@ class Model:
                                             {
                                                 self.titles_input_data: title_seq,
                                                 self.seq_lengths: seq_lengths,
-                                                self.targets: target,
+                                                self.target_inputs: targets,
                                                 self.dropout: self.keep_prob
                                             })
 
@@ -333,7 +333,7 @@ class Model:
                                                    {
                                                        self.titles_input_data: test_title_seq,
                                                        self.seq_lengths: test_seq_lengths,
-                                                       self.targets: test_target,
+                                                       self.target_inputs: test_target,
                                                        self.dropout: 1.0
                                                    })
                     if test_acc > 0:
