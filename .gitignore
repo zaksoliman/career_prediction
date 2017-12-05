@@ -99,4 +99,5 @@ project/data/
 
 .log/
 log_bak/
+log*
 *.txt

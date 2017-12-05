@@ -16,9 +16,12 @@ def load_data(data_path):
     print("Loading mapping and data")
     with open(data_path) as data_file:
         data = json.load(data_file)
-        
     title_to_id = bidict(data['title_to_id'])
     train_data, test_data = data['train_data'], data['test_data']
 
-    
-    return title_to_id, train_data, test_data
+    if "maximum_seq_length" in data:
+        max_seq_len = data["maximum_seq_length"]
+    else:
+        max_seq_len = 33
+
+    return title_to_id, train_data, test_data, max_seq_len
