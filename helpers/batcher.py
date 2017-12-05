@@ -4,7 +4,7 @@ import math
 
 class Batcher:
    
-    def __init__(self, batch_size, step_num, data, shuffle=False, shuffle_seed=123, n_classes=550):
+    def __init__(self, batch_size, step_num, data, n_classes, shuffle=False, shuffle_seed=123):
 
         if shuffle:
             np.random.seed(shuffle_seed)
@@ -18,7 +18,7 @@ class Batcher:
         self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
         self.step_num = step_num
         self.n_classes = n_classes
-        self.one_hot_lookup = np.eye(n_classes)
+        self.one_hot_lookup = np.eye(n_classes, dtype=np.int8)
 
     def next(self):
         batch_size = self.batch_size

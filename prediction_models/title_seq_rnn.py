@@ -16,15 +16,16 @@ from pprint import pprint
 
 class Model:
 
-    def __init__(self, train_data, test_data=None, class_mapping=None, use_dropout=True, n_titles=550, num_layers=1,
-                 keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True,
+    def __init__(self, train_data, n_titles, test_data=None, class_mapping=None, use_dropout=True, num_layers=1,
+                 keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True, max_grad_norm=5,
                  embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
                  n_epochs=800, log_interval=200, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                 log_dir=".log/",):
+                 log_dir=".log/", name=''):
 
         self.log_interval = log_interval
         self.titles_to_id = class_mapping
         self.restore = restore
+        self.max_grad_norm = max_grad_norm
         self.keep_prob = keep_prob
         self.use_dropout = use_dropout
         self.n_titles = n_titles
@@ -44,7 +45,7 @@ class Model:
         self.log_dir = log_dir
         self.store = store_model
         self.num_layers = num_layers
-        self.hparams = f"title_seq_{rnn_cell_type}_{num_layers}_layers_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}" \
+        self.hparams = f"{name}_title_seq_{rnn_cell_type}_{num_layers}_layers_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
                        f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
 
         self.build_model()
@@ -54,7 +55,24 @@ class Model:
         self._loss()
         self._accuracy()
         self._optimize()
-        self.summ = tf.summary.merge_all()
+        self._top_2_metric()
+        self._top_3_metric()
+        self._top_4_metric()
+        self._top_5_metric()
+        self.train_summ_op = tf.summary.merge([
+            self.train_acc_summ,
+            self.train_loss_summ,
+            self.train_top_2_summ,
+            self.train_top_3_summ,
+            self.train_top_4_summ,
+            self.train_top_5_summ])
+        self.test_summ_op = tf.summary.merge([
+            self.test_acc_summ,
+            self.test_loss_summ,
+            self.test_top_2_summ,
+            self.test_top_3_summ,
+            self.test_top_4_summ,
+            self.test_top_5_summ])
         self.writer = tf.summary.FileWriter(os.path.join(self.log_dir, self.hparams))
 
     def _predict(self):
@@ -69,8 +87,8 @@ class Model:
         self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps], name="titles_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
-        self.target = tf.placeholder(tf.int32, [None, self.max_timesteps, self.n_titles], name="labels")
-        tf.summary.histogram("targets", self.target)
+        self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps, self.n_titles], name="labels")
+        tf.summary.histogram("targets", self.targets)
         # Do embedding
         with tf.device("/cpu:0"):
             if self.use_embedding:
@@ -115,12 +133,9 @@ class Model:
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer(), name="fc_logit")
-        tf.summary.histogram("Logits", self.logit)
 
         prediction_softmax = tf.nn.softmax(self.logit, name="prediction")
-        tf.summary.histogram("logit_softmax", prediction_softmax)
         self.prediction = tf.reshape(prediction_softmax, [-1, self.max_timesteps, self.n_titles])
-        tf.summary.histogram("prediction", self.prediction)
 
         return self.prediction
 
@@ -130,42 +145,128 @@ class Model:
             #self.cross_entropy = tf.reduce_mean(cross_entropy)
 
             # Compute cross entropy for each frame.
-            cross_entropy = tf.cast(self.target, tf.float32) * tf.log(self.prediction)
+            cross_entropy = tf.cast(self.targets, tf.float32) * tf.log(self.prediction)
             cross_entropy = -tf.reduce_sum(cross_entropy, 2)
-            mask = tf.sign(tf.reduce_max(tf.abs(self.target), 2))
+            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), 2))
             cross_entropy *= tf.cast(mask, tf.float32)
             # Average over actual sequence lengths.
             cross_entropy = tf.reduce_sum(cross_entropy, 1)
             cross_entropy /= tf.reduce_sum(tf.cast(mask, tf.float32), 1)
             self.cross_entropy = tf.reduce_mean(cross_entropy)
-            tf.summary.scalar("xent", self.cross_entropy)
+            self.train_loss_summ = tf.summary.scalar("train_xent", self.cross_entropy)
+            self.test_loss_summ = tf.summary.scalar("test_xent", self.cross_entropy)
             return self.cross_entropy
 
     def _optimize(self):
         with tf.name_scope("train"):
-            self.optimize = tf.train.AdamOptimizer(self.lr).minimize(self.cross_entropy)
+            #self.optimize = tf.train.AdamOptimizer(self.lr).minimize(self.cross_entropy)
+            tvars = tf.trainable_variables()
+            optimizer = tf.train.AdamOptimizer(self.lr)
+            grads, _ = tf.clip_by_global_norm(tf.gradients(self.cross_entropy, tvars), self.max_grad_norm)
+            self.optimize = optimizer.apply_gradients(zip(grads, tvars))
+
             return self.optimize
 
     def _accuracy(self):
         with tf.name_scope("accuracy"):
             correct = tf.equal(
-                tf.argmax(self.target, 2, output_type=tf.int32), tf.argmax(self.prediction, 2, output_type=tf.int32))
+                tf.argmax(self.targets, axis=2, output_type=tf.int32),
+                tf.argmax(self.prediction, axis=2, output_type=tf.int32))
             correct = tf.cast(correct, tf.float32)
-            mask = tf.sign(tf.reduce_max(tf.abs(self.target), reduction_indices=2))
+            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
             correct *= tf.cast(mask, tf.float32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
             correct /= tf.cast(self.seq_lengths, tf.float32)
             self.accuracy =  tf.reduce_mean(correct)
-            tf.summary.scalar("training_accuracy", self.accuracy)
-            self.test_summary = tf.summary.scalar("test_accuracy", self.accuracy)
+            self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
+            self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
+
+    def _top_2_metric(self):
+        with tf.name_scope("top_k_accs"):
+            with tf.name_scope("top_2"):
+                values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
+
+                self.top_2_acc = tf.reduce_mean(correct)
+                self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
+                self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
+
+                return self.top_2_acc
+
+    def _top_3_metric(self):
+
+        with tf.name_scope("top_k_accs"):
+            with tf.name_scope("top_3"):
+                values, indices = tf.nn.top_k(self.prediction, k=3, name='top_3_op')
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
+
+                self.top_3_acc = tf.reduce_mean(correct)
+                self.train_top_3_summ = tf.summary.scalar("training_top_3_accuracy", self.top_3_acc)
+                self.test_top_3_summ = tf.summary.scalar("test_top_3_accuracy", self.top_3_acc)
+
+                return self.top_3_acc
+
+    def _top_4_metric(self):
+
+        with tf.name_scope("top_k_accs"):
+            with tf.name_scope("top_4"):
+                values, indices = tf.nn.top_k(self.prediction, k=4, name='top_4_op')
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
+
+                self.top_4_acc = tf.reduce_mean(correct)
+                self.train_top_4_summ = tf.summary.scalar("training_top_4_accuracy", self.top_4_acc)
+                self.test_top_4_summ = tf.summary.scalar("test_top_4_accuracy", self.top_4_acc)
+
+                return self.top_4_acc
+
+    def _top_5_metric(self):
+
+        with tf.name_scope("top_k_accs"):
+            with tf.name_scope("top_5"):
+                values, indices = tf.nn.top_k(self.prediction, k=5, name='top_5_op')
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
+
+                self.top_5_acc = tf.reduce_mean(correct)
+                self.train_top_5_summ =tf.summary.scalar("training_top_5_accuracy", self.top_5_acc)
+                self.test_top_5_summ = tf.summary.scalar("test_top_5_accuracy", self.top_5_acc)
+
+                return self.top_5_acc
 
     def train(self):
 
         print("Creating batchers")
-        train_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data)
-        test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data)
+        train_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data, n_classes=self.n_titles)
+        test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto()
@@ -190,22 +291,27 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy, self.summ],
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy,
+                                                                 self.top_2_acc,
+                                                                 self.top_3_acc,
+                                                                 self.top_4_acc,
+                                                                 self.top_5_acc,
+                                                                 self.train_summ_op],
                                             {
                                                 self.titles_input_data: title_seq,
                                                 self.seq_lengths: seq_lengths,
-                                                self.target: target,
+                                                self.targets: target,
                                                 self.dropout: self.keep_prob
                                             })
 
-                    tf.summary.scalar("accs", acc)
                     self.writer.add_summary(summary, b)
 
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
                             f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
-                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss} | acc {acc}')
+                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.4f} | acc: {acc*100:.2f} | top 2 acc: {top_2_acc*100:.2f}'
+                            f' | top 3 acc: {top_3_acc*100:.2f} | top 4 acc: {top_4_acc*100:.2f} | top 5 acc: {top_5_acc*100:.2f}')
 
                         start_time = time()
 
@@ -214,24 +320,47 @@ class Model:
                 print(f"Epoch:, {(e + 1)}")
 
                 avg_acc = []
+                avg_top_2 = []
+                avg_top_3 = []
+                avg_top_4 = []
+                avg_top_5 = []
+
                 for tb in range(test_batcher.max_batch_num):
                     with tf.device("/cpu:0"):
                         test_title_seq, test_seq_lengths, test_target = train_batcher.next()
 
-                    test_acc, test_summ, pred = sess.run([self.accuracy, self.test_summary, self.prediction],
+                    test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([self.accuracy,
+                                                                                                          self.top_2_acc,
+                                                                                                          self.top_3_acc,
+                                                                                                          self.top_4_acc,
+                                                                                                          self.top_5_acc,
+                                                                                                          self.test_summ_op,
+                                                                                                          self.prediction],
                                                    {
                                                        self.titles_input_data: test_title_seq,
                                                        self.seq_lengths: test_seq_lengths,
-                                                       self.target: test_target,
+                                                       self.targets: test_target,
                                                        self.dropout: 1.0
                                                    })
                     if test_acc > 0:
                         avg_acc.append(test_acc)
+                    if test_top_2 > 0:
+                        avg_top_2.append(test_top_2)
+                    if test_top_3 > 0:
+                        avg_top_3.append(test_top_3)
+                    if test_top_4 > 0:
+                        avg_top_4.append(test_top_4)
+                    if test_top_5 > 0:
+                        avg_top_5.append(test_top_5)
 
                     #print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
                     self.writer.add_summary(test_summ, tb)
 
-                print(f"Accuracy on test: {sum(avg_acc) / len(avg_acc)}")
+                print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}")
+                print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}")
+                print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}")
+                print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}")
+                print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}")
                 if self.store and e % 10 == 0:
                     save_path = saver.save(sess, path)
                     print("model saved in file: %s" % save_path)
