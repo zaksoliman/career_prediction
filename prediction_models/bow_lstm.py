@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os, random, string
 from helpers.loader import load_data
-from helpers.batcher import Batcher
+from helpers.batcher import BOW_Batcher
 from time import time
 #from helpers.data_viz import print_dists
 import numpy as np
@@ -16,11 +16,11 @@ from pprint import pprint
 
 class Model:
 
-    def __init__(self, train_data, n_titles, test_data=None, class_mapping=None, use_dropout=True, num_layers=1,
-                 keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True, max_grad_norm=5,
-                 embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
-                 n_epochs=800, log_interval=200, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                 log_dir=".log/", name=''):
+    def __init__(self, train_inputs, train_targets, test_inputs, test_targets,  n_titles, vocab_size, class_mapping=None,
+                 use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100,
+                 use_embedding=True, max_grad_norm=5, embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=33,
+                 learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, restore=True,
+                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log/", name=''):
 
         self.log_interval = log_interval
         self.titles_to_id = class_mapping
@@ -39,14 +39,17 @@ class Model:
         self.lr = learning_rate
         self.use_att = use_attention
         self.att_dim = attention_dim
-        self.train_data = train_data
-        self.test_data = test_data
+        self.train_inputs = train_inputs
+        self.train_targets = train_targets
+        self.test_inputs = test_inputs
+        self.test_targets = test_targets
+        self.vocab_size = vocab_size
         self.store_dir = store_dir
         self.log_dir = log_dir
         self.store = store_model
         self.num_layers = num_layers
-        self.hparams = f"{name}_title_seq_{rnn_cell_type}_{num_layers}_layers_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
-                       f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+        self.hparams = f"{name}_bow_title_seq_{rnn_cell_type}_{num_layers}_layers_cell_lr_{learning_rate}_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
+                       f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_inputs)}_vocab_size={self.vocab_size}"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
 
         self.build_model()
@@ -75,34 +78,25 @@ class Model:
             self.test_top_4_summ,
             self.test_top_5_summ])
         self.writer = tf.summary.FileWriter(os.path.join(self.log_dir, self.hparams))
+        self.saver = tf.train.Saver()
 
     def _predict(self):
         """
         Build the inference graph
 
-        :return:
         """
         # Keep probability for the dropout
         self.dropout = tf.placeholder(tf.float32, name="dropout_prob")
         # Our list of job title sequences (padded to max_timesteps)
-        self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps], name="titles_input_data")
+        self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps, self.vocab_size], name="titles_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
-        self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps, self.n_titles], name="labels")
-        tf.summary.histogram("targets", self.targets)
+        self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
         # Do embedding
         with tf.device("/cpu:0"):
-            if self.use_embedding:
-                title_embedding = tf.get_variable(name="title_embeddings",
-                                                  shape=[self.n_titles, self.emb_dim],
-                                                  dtype=tf.float32,
-                                                  initializer=tf.contrib.layers.xavier_initializer(),
-                                                  trainable=True)
-            else:
-                title_embedding = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
-
+            onehot = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
             # tile_emb_input has shape batch_size x times steps x emb_dim
-            self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data, name="encoded_in_seq")
+            self.targets_onehot = tf.nn.embedding_lookup(onehot, self.targets, name="encoded_in_seq")
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
@@ -119,14 +113,11 @@ class Model:
         cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
         self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
-                                                    self.title_emb_input,
+                                                    self.titles_input_data,
                                                     sequence_length=self.seq_lengths,
                                                     dtype=tf.float32,
                                                     parallel_iterations=1024)
-
-        tf.summary.histogram("RNN_out", self.output)
         output = tf.reshape(self.output, [-1, self.hidden_dim])
-        tf.summary.histogram("reshaped_output", output)
 
 
         self.logit = tf.layers.dense(output,
@@ -266,8 +257,10 @@ class Model:
     def train(self):
 
         print("Creating batchers")
-        train_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data, n_classes=self.n_titles)
-        test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
+        train_batcher = BOW_Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, input_data=self.train_inputs,
+                                    target_data=self.train_targets, n_classes=self.n_titles, vocab_size=self.vocab_size)
+        test_batcher = BOW_Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, input_data=self.test_inputs,
+                                    target_data=self.test_targets, n_classes=self.n_titles, vocab_size=self.vocab_size)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto()
@@ -276,12 +269,12 @@ class Model:
         with tf.Session(config=gpu_config) as sess:
 
             sess.run(tf.global_variables_initializer())
+            self.writer.add_graph(sess.graph)
+
             if self.load(sess, self.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
-
-            self.writer.add_graph(sess.graph)
 
             for e in range(self.n_epochs):
                 start_time = time()
@@ -289,7 +282,7 @@ class Model:
                 for b in range(train_batcher.max_batch_num):
 
                     with tf.device("/cpu:0"):
-                        title_seq, seq_lengths, target = test_batcher.next()
+                        title_seq, seq_lengths, target = train_batcher.next()
 
                     loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy,
                                                                  self.top_2_acc,
@@ -310,8 +303,8 @@ class Model:
                         elapsed = time() - start_time
                         print(
                             f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
-                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.4f} | acc: {acc*100:.2f} | top 2 acc: {top_2_acc*100:.2f}'
-                            f' | top 3 acc: {top_3_acc*100:.2f} | top 4 acc: {top_4_acc*100:.2f} | top 5 acc: {top_5_acc*100:.2f}')
+                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.4f} | acc: {acc*100:.2f}% | top 2 acc: {top_2_acc*100:.2f}%'
+                            f' | top 3 acc: {top_3_acc*100:.2f}% | top 4 acc: {top_4_acc*100:.2f}% | top 5 acc: {top_5_acc*100:.2f}%')
 
                         start_time = time()
 
@@ -327,7 +320,7 @@ class Model:
 
                 for tb in range(test_batcher.max_batch_num):
                     with tf.device("/cpu:0"):
-                        test_title_seq, test_seq_lengths, test_target = train_batcher.next()
+                        test_title_seq, test_seq_lengths, test_target = test_batcher.next()
 
                     test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([self.accuracy,
                                                                                                           self.top_2_acc,
@@ -356,11 +349,12 @@ class Model:
                     #print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
                     self.writer.add_summary(test_summ, tb)
 
-                print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}")
-                print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}")
-                print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}")
-                print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}")
-                print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}")
+                print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}%")
+                print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}%")
+                print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}%")
+                print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}%")
+                print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}%")
+
                 if self.store and e % 10 == 0:
                     save_path = self.save(sess, self.checkpoint_dir, e)
                     print("model saved in file: %s" % save_path)
@@ -382,6 +376,7 @@ class Model:
             return True
         else:
             return False
+
 
 def main():
     path = "/data/rali7/Tmp/solimanz/data/datasets/1/title_sequences.json"
