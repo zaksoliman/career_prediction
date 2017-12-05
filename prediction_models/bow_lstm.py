@@ -94,7 +94,7 @@ class Model:
         self.target_inputs = tf.placeholder(tf.int32, [None, self.max_timesteps], name="labels")
         # Do embedding
         with tf.device("/cpu:0"):
-            onehot = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
+            onehot = tf.Variable(tf.eye(self.n_titles, dtype=tf.int16), trainable=False, name="title_one_hot_encoding")
             # tile_emb_input has shape batch_size x times steps x emb_dim
             self.targets = tf.nn.embedding_lookup(onehot, self.target_inputs, name="onehot_encoded_seq")
 
