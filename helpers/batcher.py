@@ -83,7 +83,7 @@ class BOW_Batcher:
                 input_seqs[i][j][bow] = 1
 
             seqs_length[i] = len(input_seq)
-            targets[i, :len(target_seq), :] = target_seq
+            targets[i, :len(target_seq)] = target_seq
 
         if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
             self.batch_num = 0
