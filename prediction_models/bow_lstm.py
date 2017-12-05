@@ -165,12 +165,12 @@ class Model:
             correct = tf.equal(
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
-            correct = tf.cast(correct, tf.int16)
+            correct = tf.cast(correct, tf.int32)
             mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= tf.cast(mask, dtype=tf.int16)
+            correct *= tf.cast(mask, dtype=tf.int32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
-            correct /= tf.cast(self.seq_lengths, tf.float32)
+            correct /= self.seq_lengths
             self.accuracy =  tf.reduce_mean(correct)
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
