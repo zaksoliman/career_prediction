@@ -119,7 +119,7 @@ class Model:
                                                     dtype=tf.float32,
                                                     parallel_iterations=1024)
         output = tf.reshape(self.output, [-1, self.hidden_dim])
-
+        self.output = output
 
         self.logit = tf.layers.dense(output,
                                      self.n_titles,
@@ -288,7 +288,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                   loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -304,7 +304,6 @@ class Model:
                             self.target_inputs: targets,
                             self.dropout: self.keep_prob
                         })
-
 
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
