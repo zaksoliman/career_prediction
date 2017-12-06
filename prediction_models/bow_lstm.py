@@ -166,11 +166,11 @@ class Model:
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
             correct = tf.cast(correct, tf.float32)
-            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= tf.cast(mask, tf.float32)
+            self.mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+            correct *= tf.cast(self.mask, tf.float32)
+            self.correct = correct
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
-            self.cor = correct
             correct /= tf.cast(self.seq_lengths, tf.float32)
             self.accuracy =  tf.reduce_mean(correct)
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
@@ -286,7 +286,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor, mask = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -295,7 +295,8 @@ class Model:
                         self.top_4_acc,
                         self.top_5_acc,
                         self.train_summ_op,
-                        self.cor
+                        self.correct,
+                        self.mask
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -305,6 +306,7 @@ class Model:
                         })
 
                     print(cor)
+                    print(mask)
                     print(seq_lengths)
 
                     if batch % self.log_interval == 0 and batch > 0:
@@ -387,13 +389,6 @@ class Model:
             return True
         else:
             return False
-
-
-def main():
-    path = "/data/rali7/Tmp/solimanz/data/datasets/1/title_sequences.json"
-    mapping, train_data, test_data = load_data(path)
-    seq_model = Model(train_data=train_data, num_layers=2)
-    seq_model.train()
 
 
 if __name__ == "__main__":
