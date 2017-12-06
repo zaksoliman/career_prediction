@@ -88,9 +88,9 @@ class BOW_Batcher:
         if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
             self.batch_num = 0
             if self.max_batch_num != 0:
-                p = np.random.permutation(len(self.input_data))
-                self.input_data = self.input_data[p, :, :]
-                self.target_data = self.target_data[p, :]
+                zipped = list(zip(self.input_data, self.target_data))
+                np.random.shuffle(zipped)
+                self.input_data, self.target_data = zip(*zipped)
         else:
             self.batch_num += 1
 

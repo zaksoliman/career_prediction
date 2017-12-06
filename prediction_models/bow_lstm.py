@@ -170,6 +170,7 @@ class Model:
             correct *= tf.cast(mask, tf.float32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
+            self.cor = correct
             correct /= tf.cast(self.seq_lengths, tf.float32)
             self.accuracy =  tf.reduce_mean(correct)
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
@@ -285,7 +286,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -293,7 +294,8 @@ class Model:
                         self.top_3_acc,
                         self.top_4_acc,
                         self.top_5_acc,
-                        self.train_summ_op
+                        self.train_summ_op,
+                        self.cor
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -302,6 +304,8 @@ class Model:
                             self.dropout: self.keep_prob
                         })
 
+                    print(cor)
+                    print(seq_lengths)
 
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
