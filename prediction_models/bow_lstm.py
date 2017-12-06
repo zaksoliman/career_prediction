@@ -170,6 +170,7 @@ class Model:
             correct = tf.cast(correct, dtype=tf.int32)
             correct *= self.mask
             self.correct = correct
+            correct = tf.cast(correct, dtype=tf.float32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
             correct /= tf.cast(self.seq_lengths, tf.float32)
