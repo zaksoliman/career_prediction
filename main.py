@@ -53,7 +53,8 @@ def main():
             max_timesteps=max_seq_len,
             num_layers=1,
             n_epochs=1500,
-            learning_rate=0.001
+            learning_rate=0.001,
+            batch_size=10
         )
 
         seq_model.train()
