@@ -165,9 +165,9 @@ class Model:
             correct = tf.equal(
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
-            correct = tf.cast(correct, tf.float32)
-            self.mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
-            correct *= tf.cast(self.mask, tf.float32)
+            #correct = tf.cast(correct, tf.float32)
+            self.mask = tf.sequence_mask(self.seq_lengths)
+            correct *= self.mask
             self.correct = correct
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
@@ -286,7 +286,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor, mask, targets = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor, mask = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -296,8 +296,7 @@ class Model:
                         self.top_5_acc,
                         self.train_summ_op,
                         self.correct,
-                        self.mask,
-                        self.targets
+                        self.mask
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -308,7 +307,6 @@ class Model:
 
                     print(cor)
                     print(mask)
-                    print(targets)
                     print(seq_lengths)
 
                     if batch % self.log_interval == 0 and batch > 0:
