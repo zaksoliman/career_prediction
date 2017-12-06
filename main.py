@@ -54,7 +54,7 @@ def main():
             num_layers=1,
             n_epochs=1500,
             learning_rate=0.001,
-            batch_size=10
+            batch_size=100
         )
 
         seq_model.train()

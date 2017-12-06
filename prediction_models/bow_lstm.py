@@ -20,7 +20,7 @@ class Model:
                  use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100,
                  use_embedding=True, max_grad_norm=5, embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=33,
                  learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, restore=True,
-                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log_test/", name=''):
+                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log", name=''):
 
         self.log_interval = log_interval
         self.titles_to_id = class_mapping
@@ -185,12 +185,11 @@ class Model:
                 labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
                 mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
-                correct = tf.cast(correct, dtype=tf.int32)
                 correct *= mask
                 correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
-                correct /= self.seq_lengths
+                correct /= tf.cast(self.seq_lengths, tf.float32)
 
                 self.top_2_acc = tf.reduce_mean(correct)
                 self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
@@ -212,7 +211,7 @@ class Model:
                 correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
-                correct /= self.seq_lengths
+                correct /= tf.cast(self.seq_lengths, tf.float32)
 
                 self.top_3_acc = tf.reduce_mean(correct)
                 self.train_top_3_summ = tf.summary.scalar("training_top_3_accuracy", self.top_3_acc)
@@ -234,7 +233,7 @@ class Model:
                 correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
-                correct /= self.seq_lengths
+                correct /= tf.cast(self.seq_lengths, tf.float32)
 
                 self.top_4_acc = tf.reduce_mean(correct)
                 self.train_top_4_summ = tf.summary.scalar("training_top_4_accuracy", self.top_4_acc)
@@ -256,7 +255,7 @@ class Model:
                 correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
-                correct /= self.seq_lengths
+                correct /= tf.cast(self.seq_lengths, tf.float32)
 
                 self.top_5_acc = tf.reduce_mean(correct)
                 self.train_top_5_summ =tf.summary.scalar("training_top_5_accuracy", self.top_5_acc)
@@ -293,8 +292,8 @@ class Model:
 
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
-
-                   loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                    
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
