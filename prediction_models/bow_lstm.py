@@ -286,7 +286,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor, mask = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, cor, mask, targets = sess.run([
                         self.cross_entropy,
                         self.optimize,
                         self.accuracy,
@@ -296,7 +296,8 @@ class Model:
                         self.top_5_acc,
                         self.train_summ_op,
                         self.correct,
-                        self.mask
+                        self.mask,
+                        self.targets
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -307,6 +308,7 @@ class Model:
 
                     print(cor)
                     print(mask)
+                    print(targets)
                     print(seq_lengths)
 
                     if batch % self.log_interval == 0 and batch > 0:
