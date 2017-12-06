@@ -290,7 +290,7 @@ class Model:
                 for b in range(train_batcher.max_batch_num):
 
                     with tf.device("/cpu:0"):
-                        title_seq, seq_lengths, target = test_batcher.next()
+                        title_seq, seq_lengths, target = train_batcher.next()
 
                     loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([self.cross_entropy, self.optimize, self.accuracy,
                                                                  self.top_2_acc,
