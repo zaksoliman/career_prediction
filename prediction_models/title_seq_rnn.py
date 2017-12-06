@@ -326,7 +326,7 @@ class Model:
 
                 for tb in range(test_batcher.max_batch_num):
                     with tf.device("/cpu:0"):
-                        test_title_seq, test_seq_lengths, test_target = train_batcher.next()
+                        test_title_seq, test_seq_lengths, test_target = test_batcher.next()
 
                     test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([self.accuracy,
                                                                                                           self.top_2_acc,
