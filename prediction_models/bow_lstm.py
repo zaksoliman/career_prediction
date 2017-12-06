@@ -166,7 +166,8 @@ class Model:
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
             #correct = tf.cast(correct, tf.float32)
-            self.mask = tf.sequence_mask(self.seq_lengths)
+            self.mask = tf.sequence_mask(self.seq_lengths, dtype=tf.int32)
+            tf.cast(correct, dtype=tf.int32)
             correct *= self.mask
             self.correct = correct
             # Average over actual sequence lengths.
