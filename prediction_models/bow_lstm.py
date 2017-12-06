@@ -140,7 +140,7 @@ class Model:
             # Compute cross entropy for each frame.
             cross_entropy = tf.cast(self.targets, tf.float32) * tf.log(self.prediction)
             cross_entropy = -tf.reduce_sum(cross_entropy, 2)
-            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), 2))
+            mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32) #tf.sign(tf.reduce_max(tf.abs(self.targets), 2))
             cross_entropy *= tf.cast(mask, tf.float32)
             # Average over actual sequence lengths.
             cross_entropy = tf.reduce_sum(cross_entropy, 1)
@@ -165,11 +165,9 @@ class Model:
             correct = tf.equal(
                 tf.argmax(self.targets, axis=2, output_type=tf.int32),
                 tf.argmax(self.prediction, axis=2, output_type=tf.int32))
-            #correct = tf.cast(correct, tf.float32)
-            self.mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+            mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
             correct = tf.cast(correct, dtype=tf.int32)
-            correct *= self.mask
-            self.correct = correct
+            correct *= mask
             correct = tf.cast(correct, dtype=tf.float32)
             # Average over actual sequence lengths.
             correct = tf.reduce_sum(correct, reduction_indices=1)
@@ -186,8 +184,10 @@ class Model:
                 labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
                 labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
-                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+                correct = tf.cast(correct, dtype=tf.int32)
                 correct *= mask
+                correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
                 correct /= self.seq_lengths
@@ -206,8 +206,10 @@ class Model:
                 labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
                 labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
-                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+                correct = tf.cast(correct, dtype=tf.int32)
                 correct *= mask
+                correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
                 correct /= self.seq_lengths
@@ -226,8 +228,10 @@ class Model:
                 labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
                 labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
-                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+                correct = tf.cast(correct, dtype=tf.int32)
                 correct *= mask
+                correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
                 correct /= self.seq_lengths
@@ -246,8 +250,10 @@ class Model:
                 labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
                 labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
-                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+                correct = tf.cast(correct, dtype=tf.int32)
                 correct *= mask
+                correct = tf.cast(correct, dtype=tf.float32)
                 # Average over actual sequence lengths.
                 correct = tf.reduce_sum(correct, reduction_indices=1)
                 correct /= self.seq_lengths
