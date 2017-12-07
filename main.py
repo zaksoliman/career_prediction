@@ -15,14 +15,16 @@ def main():
         '2': 'start_tags',
         '3': 'bow',
         '4': 'bow_durations',
-        '5': 'multi_fasttext'
+        '5': 'multi_fasttext',
+        '6': 'big_multi_ft'
     }
     dataset_names = {
         '1': 'title_sequences',
         '2': 'title_sequences',
         '3': 'title_sequences',
         '4': 'title_sequences_durations',
-        '5': 'title_embedding_sequences_multi_label'
+        '5': 'title_embedding_sequences_multi_label',
+        '6': 'big_title_embedding_sequences_multi_label'
     }
 
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{ds}/{dataset_names[ds]}.json"
@@ -74,6 +76,25 @@ def main():
             max_timesteps=max_seq_len,
             num_layers=1,
             freeze_emb=False,
+            n_epochs=1500,
+            learning_rate=0.001,
+            batch_size=100
+        )
+    elif ds in "6":
+        print("Big Multi label model selected...")
+        title_id, train_inputs, train_targets, test_inputs, test_targets, token_id, emb_dim, max_seq_len = load_data(path, multi=True)
+        seq_model = multi_label_model(
+            name=model_names[ds],
+            train_inputs=train_inputs,
+            train_targets=train_targets,
+            test_inputs=test_inputs,
+            test_targets=test_targets,
+            embedding_dim=emb_dim,
+            emb_path="/data/rali7/Tmp/solimanz/data/datasets/6/embeddings_small.npy",
+            n_titles=len(title_id),
+            n_tokens=len(token_id),
+            max_timesteps=max_seq_len,
+            num_layers=1,
             n_epochs=1500,
             learning_rate=0.001,
             batch_size=100
