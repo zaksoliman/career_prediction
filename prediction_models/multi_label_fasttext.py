@@ -196,11 +196,21 @@ class Model:
 
     def _exact_accuracy(self):
         with tf.name_scope("accuracy"):
-            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.int32)
-            correct = tf.equal(predicted_labels, self.targets)
-            all_labels_true = tf.reduce_min(tf.cast(correct, dtype=tf.float32), 1)
-            self.accuracy2 = tf.reduce_mean(all_labels_true)
 
+            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.bool)
+            same = tf.logical_and(predicted_labels, tf.cast(self.targets, dtype=tf.bool))
+            same = tf.sign(tf.reduce_sum(tf.cast(same, dtype=tf.int32), reduction_indices=2))
+            mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+            same *= mask
+            same = tf.cast(same, dtype=tf.float32)
+            # Average over actual sequence lengths.
+            same = tf.reduce_sum(same, reduction_indices=1)
+            same /= tf.cast(self.seq_lengths, tf.float32)
+
+            #correct = tf.equal(predicted_labels, self.targets)
+            #all_labels_true = tf.reduce_min(tf.cast(correct, dtype=tf.float32), 1)
+            #self.accuracy2 = tf.reduce_mean(all_labels_true)
+            self.accuracy2 = tf.reduce_mean(same)
             self.train_acc_all_summ = tf.summary.scalar("training_accuracy_all", self.accuracy2)
             self.test_acc_all_summ = tf.summary.scalar("test_accuracy_all", self.accuracy2)
             return self.accuracy2
