@@ -90,11 +90,12 @@ def main():
             test_inputs=test_inputs,
             test_targets=test_targets,
             embedding_dim=emb_dim,
-            emb_path="/data/rali7/Tmp/solimanz/data/datasets/6/embeddings_small.npy",
+            emb_path="/data/rali7/Tmp/solimanz/data/datasets/6/embeddings_big.npy",
             n_titles=len(title_id),
             n_tokens=len(token_id),
             max_timesteps=max_seq_len,
             num_layers=1,
+            freeze_emb=True,
             n_epochs=1500,
             learning_rate=0.001,
             batch_size=100

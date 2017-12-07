@@ -111,7 +111,6 @@ class MultiLabelBatcher:
         self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
         self.step_num = step_num
         self.n_classes = n_classes
-        self.one_hot_lookup = np.eye(n_classes, dtype=np.int8)
         self.concat = concat
 
     def next(self):
