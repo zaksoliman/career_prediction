@@ -277,10 +277,8 @@ class Model:
                         })
 
 
-                    if test_acc > 0:
-                        avg_acc.append(test_acc)
-                    if test_acc2 > 0:
-                        avg_acc2.append(test_acc2)
+                    avg_acc.append(test_acc)
+                    avg_acc2.append(test_acc2)
                     # print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
                 print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}%")
                 print(f"Accuracy (all labels) on test: {sum(avg_acc2)/len(avg_acc2)*100:.2f}%")
