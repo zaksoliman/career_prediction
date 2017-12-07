@@ -164,32 +164,17 @@ class Model:
 
     def _total_accuracy(self):
         with tf.name_scope("accuracy"):
-            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.int32)
-            correct = tf.equal(predicted_labels, self.targets)
+            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.bool)
+            same = tf.logical_and(predicted_labels, tf.cast(self.targets, dtype=tf.bool))
+            same = tf.reduce_sum(tf.cast(same, dtype=tf.int32), reduction_indices=2)
+            mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
+            same *= mask
+            same = tf.cast(same, dtype=tf.float32)
 
-            # correct = tf.equal(predicted_labels, self.targets)
-            # truth = tf.equal(self.targets, self.targets)
-            #
-            # truth = tf.reduce_sum(tf.cast(truth, dtype=tf.int16), reduction_indices=2)
-            # correct = tf.reduce_sum(tf.cast(correct, dtype=tf.int16), reduction_indices=2)
-            #
-            # mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.int32)
-            #
-            # correct = tf.cast(correct, dtype=tf.int32)
-            # truth = tf.cast(truth, dtype=tf.int32)
-            #
-            # correct *= mask
-            # truth *= mask
-            #
-            # correct = tf.cast(correct, dtype=tf.float32)
-            # truth = tf.cast(truth, dtype=tf.float32)
-            #
-            # correct = tf.reduce_sum(correct, reduction_indices=[1,0])
-            # truth = tf.reduce_sum(truth, reduction_indices=[1, 0])
-            #
-            # correct /= tf.cast(truth, tf.float32)
+            same = tf.reduce_sum(same, reduction_indices=[1,0])
+            total = tf.reduce_sum(self.targets, reduction_indices=[2,1,0])
 
-            self.accuracy = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+            self.accuracy = same/total
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
@@ -264,7 +249,7 @@ class Model:
                         elapsed = time() - start_time
                         print(
                             f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
-                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.4f} | acc: {acc*100:.2f}% | '
+                            f'ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.10f} | acc: {acc*100:.2f}% | '
                             f'acc2: {acc2*100:.2f}%')
 
                         start_time = time()
