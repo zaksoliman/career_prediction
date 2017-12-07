@@ -21,7 +21,7 @@ class Model:
                  embedding_dim=300, rnn_cell_type='LSTM', max_timesteps=33, learning_rate=0.001, batch_size=100,
                  n_epochs=800, log_interval=100, store_model=True, restore=True,
                  emb_path="/data/rali7/Tmp/solimanz/data/datasets/5/embeddings_small.npy",
-                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log_test", name=''):
+                 store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log", name=''):
 
         self.log_interval = log_interval
         self.titles_to_id = class_mapping
