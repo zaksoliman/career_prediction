@@ -75,7 +75,7 @@ def main():
             num_layers=1,
             n_epochs=1500,
             learning_rate=0.001,
-            batch_size=5
+            batch_size=100
         )
 
     if seq_model:
