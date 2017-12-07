@@ -174,7 +174,7 @@ class Model:
             same = tf.reduce_sum(same, reduction_indices=[1,0])
             total = tf.reduce_sum(self.targets, reduction_indices=[2,1,0])
 
-            self.accuracy = same/total
+            self.accuracy = same/tf.cast(total, dtype=tf.float32)
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
