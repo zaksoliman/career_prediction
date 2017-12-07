@@ -95,3 +95,51 @@ class BOW_Batcher:
             self.batch_num += 1
 
         return input_seqs, seqs_length, targets
+
+class MultiLabelBatcher:
+
+    def __init__(self, batch_size, step_num, input_data, target_data, n_classes, n_tokens, concat=False):
+        print("Building batcher")
+        self.input_data = input_data  # sorted(self.data, key=lambda x: len(x), reverse=True)
+        self.target_data = target_data
+        if len(self.input_data) != len(self.target_data):
+            print("Data not same size!!!")
+        self.n_tokens = n_tokens
+        self.num_of_samples = len(self.input_data)
+        self.batch_size = batch_size
+        self.batch_num = 0
+        self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
+        self.step_num = step_num
+        self.n_classes = n_classes
+        self.one_hot_lookup = np.eye(n_classes, dtype=np.int8)
+        self.concat = concat
+
+    def next(self):
+        batch_size = self.batch_size
+        if self.batch_num == self.max_batch_num - 1:  # i.e. at the last batch
+            # We put the rest of the data in the last batch
+            batch_size = self.num_of_samples - (self.batch_size * (self.max_batch_num - 1))
+
+        input_seqs = np.zeros((batch_size, self.step_num), dtype=np.int32)
+        targets = np.zeros((batch_size, self.step_num, self.n_tokens), dtype=np.int32)
+        seqs_length = np.zeros(batch_size, dtype=np.int32)
+
+        for i in range(batch_size):
+            input_seq = self.input_data[self.batch_num * self.batch_size + i]
+            target_seq = self.target_data[self.batch_num * self.batch_size + i]
+
+            input_seqs[i, :len(input_seq)] = input_seq
+            seqs_length[i] = len(input_seq)
+            for j, indices in enumerate(target_seq):
+                targets[i, j, indices] = 1
+
+        if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
+            self.batch_num = 0
+            if self.max_batch_num != 0:
+                zipped = list(zip(self.input_data, self.target_data))
+                np.random.shuffle(zipped)
+                self.input_data, self.target_data = zip(*zipped)
+        else:
+            self.batch_num += 1
+
+        return input_seqs, seqs_length, targets

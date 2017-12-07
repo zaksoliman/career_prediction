@@ -2,7 +2,7 @@ import json
 from bidict import bidict
 
 
-def load_data(data_path, bow=False):
+def load_data(data_path, bow=False, multi=False):
     """
 
     :param data_path: full path to the json serialized file
@@ -12,6 +12,20 @@ def load_data(data_path, bow=False):
         - test_dat: list -> sequences of title ids
 
     """
+
+# """
+# data = {
+#         'title_to_id': dict(title_id),
+#         'token_id': token_id,
+#         'train_inputs': train_inputs,
+#         'test_inputs': test_inputs,
+#         'train_targets': train_targets,
+#         'test_targets': test_targets,
+#         'maximum_seq_len': max(max_train_seq, max_test_seq),
+#         'emb_dim': emb_dim
+#
+#     }
+#     """
 
     print("Loading mapping and data")
 
@@ -32,6 +46,14 @@ def load_data(data_path, bow=False):
         test_targets = data["test_targets"]
         vocab_id = data["vocab_id"]
         return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, vocab_id, max_seq_len
+    if multi:
+        train_inputs = data["train_inputs"]
+        train_targets = data["train_targets"]
+        test_inputs = data["test_inputs"]
+        test_targets = data["test_targets"]
+        token_id = data["token_id"]
+        emb_dim = data["emb_dim"]
+        return title_to_id, train_inputs, train_targets, test_inputs, test_targets, token_id, emb_dim, max_seq_len
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len
