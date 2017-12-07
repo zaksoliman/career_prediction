@@ -135,7 +135,7 @@ class Model:
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer(), name="fc_logit")
-
+        self.logit = tf.reshape(self.logit, [-1, self.max_timesteps, self.n_titles])
         prediction_softmax = tf.nn.softmax(self.logit, name="prediction")
         self.prediction = tf.reshape(prediction_softmax, [-1, self.max_timesteps, self.n_titles])
 
@@ -143,17 +143,15 @@ class Model:
 
     def _loss(self):
         with tf.name_scope("xent"):
-            #cross_entropy = -tf.reduce_sum(self.target_one_hot * tf.log(self.prediction), [1, 2])
-            #self.cross_entropy = tf.reduce_mean(cross_entropy)
 
-            # Compute cross entropy for each frame.
-            cross_entropy = tf.cast(self.targets, tf.float32) * tf.log(self.prediction)
-            cross_entropy = -tf.reduce_sum(cross_entropy, 2)
-            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), 2))
-            cross_entropy *= tf.cast(mask, tf.float32)
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+                labels=tf.cast(self.targets, dtype=tf.float32),
+                logits=self.logit)
+            mask = tf.sequence_mask(self.seq_lengths, maxlen=self.max_timesteps, dtype=tf.float32)
+            cross_entropy *= mask
             # Average over actual sequence lengths.
-            cross_entropy = tf.reduce_sum(cross_entropy, 1)
-            cross_entropy /= tf.reduce_sum(tf.cast(mask, tf.float32), 1)
+            #cross_entropy = tf.reduce_sum(cross_entropy, 1)
+            #cross_entropy /= tf.reduce_sum(tf.cast(mask, tf.float32), 1)
             self.cross_entropy = tf.reduce_mean(cross_entropy)
             self.train_loss_summ = tf.summary.scalar("train_xent", self.cross_entropy)
             self.test_loss_summ = tf.summary.scalar("test_xent", self.cross_entropy)
