@@ -73,6 +73,7 @@ def main():
             n_tokens=len(token_id),
             max_timesteps=max_seq_len,
             num_layers=1,
+            freeze_emb=False,
             n_epochs=1500,
             learning_rate=0.001,
             batch_size=100
