@@ -17,9 +17,9 @@ from pprint import pprint
 class Model:
 
     def __init__(self, train_inputs, train_targets, test_inputs, test_targets, n_titles, n_tokens, class_mapping=None,
-                 use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, freeze_emb=True, max_grad_norm=5,
+                 use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=512, freeze_emb=True, max_grad_norm=5,
                  embedding_dim=300, rnn_cell_type='LSTM', max_timesteps=33, learning_rate=0.001, batch_size=100,
-                 n_epochs=800, log_interval=100, store_model=True, restore=True,
+                 n_epochs=800, log_interval=2000, store_model=True, restore=True,
                  emb_path="/data/rali7/Tmp/solimanz/data/datasets/5/embeddings_small.npy",
                  store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log", name=''):
 

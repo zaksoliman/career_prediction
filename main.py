@@ -11,10 +11,10 @@ def main():
     #model = sys.argv[1]
 
     model_names = {
-        '1': '',
-        '2': 'start_tags',
-        '3': 'bow',
-        '4': 'bow_durations',
+        '1': 'v2',
+        '2': 'start_tags_v2',
+        '3': 'bow_fixed',
+        '4': 'bow_durations_v2',
         '5': 'multi_fasttext',
         '6': 'big_multi_ft'
     }
@@ -97,7 +97,7 @@ def main():
             num_layers=1,
             freeze_emb=True,
             n_epochs=1500,
-            learning_rate=0.001,
+            learning_rate=0.01,
             batch_size=100
         )
 
