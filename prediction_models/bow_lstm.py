@@ -373,6 +373,82 @@ class Model:
                     save_path = self.save(sess, self.checkpoint_dir, e)
                     print("model saved in file: %s" % save_path)
 
+    def test(self):
+
+        print("Creating batchers")
+        test_batcher = BOW_Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, input_data=self.test_inputs,
+                                   target_data=self.test_targets, n_classes=self.n_titles, vocab_size=self.vocab_size)
+
+        # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
+        gpu_config = tf.ConfigProto()
+        gpu_config.gpu_options.allow_growth = True
+
+        with tf.Session(config=gpu_config) as sess:
+
+            sess.run(tf.global_variables_initializer())
+            self.writer.add_graph(sess.graph)
+
+            if self.load(sess, self.checkpoint_dir):
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
+
+            for e in range(self.n_epochs):
+                start_time = time()
+                batch = 0
+
+                print(f"Epoch:, {(e + 1)}")
+
+                avg_acc = []
+                avg_top_2 = []
+                avg_top_3 = []
+                avg_top_4 = []
+                avg_top_5 = []
+
+                for tb in range(test_batcher.max_batch_num):
+                    with tf.device("/cpu:0"):
+                        test_title_seq, test_seq_lengths, test_target = test_batcher.next()
+
+                    test_acc, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([
+                        self.accuracy,
+                        self.top_2_acc,
+                        self.top_3_acc,
+                        self.top_4_acc,
+                        self.top_5_acc,
+                        self.test_summ_op,
+                        self.prediction
+                    ],
+                        {
+                            self.titles_input_data: test_title_seq,
+                            self.seq_lengths: test_seq_lengths,
+                            self.target_inputs: test_target,
+                            self.dropout: 1.0
+                        })
+
+                    if test_acc > 0:
+                        avg_acc.append(test_acc)
+                    if test_top_2 > 0:
+                        avg_top_2.append(test_top_2)
+                    if test_top_3 > 0:
+                        avg_top_3.append(test_top_3)
+                    if test_top_4 > 0:
+                        avg_top_4.append(test_top_4)
+                    if test_top_5 > 0:
+                        avg_top_5.append(test_top_5)
+
+                    # print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
+                    self.writer.add_summary(test_summ, tb)
+
+                print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}%")
+                print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}%")
+                print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}%")
+                print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}%")
+                print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}%")
+
+                if self.store and e % 10 == 0:
+                    save_path = self.save(sess, self.checkpoint_dir, e)
+                    print("model saved in file: %s" % save_path)
+
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
