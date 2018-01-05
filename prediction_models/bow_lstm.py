@@ -388,6 +388,7 @@ class Model:
             sess.run(tf.global_variables_initializer())
             self.writer.add_graph(sess.graph)
 
+            print("Trying to load models at " +  os.path.join(self.checkpoint_dir, self.hparams))
             if self.load(sess, self.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
