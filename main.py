@@ -102,7 +102,7 @@ def main():
         )
 
     if seq_model:
-        seq_model.train()
+        seq_model.test()
 
 if __name__ == "__main__":
     main()
