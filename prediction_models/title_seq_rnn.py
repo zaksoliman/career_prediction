@@ -425,6 +425,22 @@ class Model:
                     #print_dists(self.titles_to_id, test_seq_lengths, test_title_seq, pred, test_target, f_name=self.hparams)
                     self.writer.add_summary(test_summ, tb)
 
+                    print("Saving prediction matrix...")
+                    with open("/data/rali7/Tmp/solimanz/data/model_samples/seq/predictions.npy", "wb") as f:
+                        np.save(f, pred)
+
+                    print("Saving input sequences...")
+                    with open("/data/rali7/Tmp/solimanz/data/model_samples/seq/title_seq.npy", "wb") as f:
+                        np.save(f, test_title_seq)
+
+                    print("Saving sequence lengths...")
+                    with open("/data/rali7/Tmp/solimanz/data/model_samples/seq/seq_lengths.npy", "wb") as f:
+                        np.save(f, test_seq_lengths)
+
+                    print("Saving output targets...")
+                    with open("/data/rali7/Tmp/solimanz/data/model_samples/seq/targets.npy", "wb") as f:
+                        np.save(f, test_target)
+
                 print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}")
                 print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}")
                 print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}")
