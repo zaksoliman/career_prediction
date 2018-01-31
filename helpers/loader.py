@@ -47,13 +47,10 @@ def load_data(data_path, bow=False, multi=False):
         vocab_id = data["vocab_id"]
         return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, vocab_id, max_seq_len
     if multi:
-        train_inputs = data["train_inputs"]
-        train_targets = data["train_targets"]
-        test_inputs = data["test_inputs"]
-        test_targets = data["test_targets"]
-        token_id = data["token_id"]
-        emb_dim = data["emb_dim"]
-        return title_to_id, train_inputs, train_targets, test_inputs, test_targets, token_id, emb_dim, max_seq_len
+        train_inputs = data["sequences"]
+        train_targets = data["multi_label_targets"]
+        test_inputs = data["test_data"]
+        return title_to_id, train_inputs, train_targets, test_inputs, max_seq_len
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len

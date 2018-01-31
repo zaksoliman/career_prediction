@@ -185,6 +185,23 @@ class Model:
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
 
+    def _accuracy_last(self):
+        with tf.name_scope("accuracy_last"):
+            correct = tf.equal(
+                tf.argmax(self.targets, axis=2, output_type=tf.int32),
+                tf.argmax(self.prediction, axis=2, output_type=tf.int32))
+            correct = tf.cast(correct, tf.float32)
+            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+            correct *= tf.cast(mask, tf.float32)
+            # Average over actual sequence lengths.
+            correct = tf.reduce_sum(correct, reduction_indices=1)
+            correct /= tf.cast(self.seq_lengths, tf.float32)
+            self.accuracy =  tf.reduce_mean(correct)
+            self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
+            self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
+            return self.accuracy
+
+
     def _top_2_metric(self):
         with tf.name_scope("top_k_accs"):
             with tf.name_scope("top_2"):

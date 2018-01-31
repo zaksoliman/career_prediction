@@ -11,9 +11,9 @@ def main():
     #model = sys.argv[1]
 
     model_names = {
-        '1': 'v2',
-        '2': 'start_tags_v2',
-        '3': 'bow_fixed',
+        '1': 'top7000',
+        '2': 'top7000_start_tags',
+        '3': 'top7000_bow_fixed',
         '4': 'bow_durations_v2',
         '5': 'multi_fasttext',
         '6': 'big_multi_ft'
@@ -27,7 +27,7 @@ def main():
         '6': 'big_title_embedding_sequences_multi_label'
     }
 
-    path = f"/data/rali7/Tmp/solimanz/data/datasets/{ds}/{dataset_names[ds]}.json"
+    path = f"/data/rali7/Tmp/solimanz/data/datasets/top7000/{ds}/{dataset_names[ds]}.json"
 
     if ds in "12":
         mapping, train_data, test_data, max_seq_len = load_data(path)
@@ -35,13 +35,15 @@ def main():
             name=model_names[ds],
             train_data=train_data,
             test_data=test_data,
-            embedding_dim=100,
+            embedding_dim=500,
             n_titles=len(mapping),
             max_timesteps=max_seq_len,
             class_mapping=mapping,
             num_layers=1,
-            n_epochs=1500,
-            learning_rate=0.001
+            n_epochs=800,
+            learning_rate=0.01,
+            store_model=True,
+            restore=True
         )
 
     elif ds in "34":
@@ -102,7 +104,7 @@ def main():
         )
 
     if seq_model:
-        seq_model.test()
+        seq_model.train()
 
 if __name__ == "__main__":
     main()
