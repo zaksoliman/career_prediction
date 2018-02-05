@@ -171,7 +171,7 @@ class SequenceBatcher:
             target_label = example[-1]
             input_seqs[i, :len(sequence)] = sequence
             seqs_length[i] = len(sequence)
-            targets[i, target_label] = self.one_hot_lookup[target_label]
+            targets[i,:] = self.one_hot_lookup[target_label]
 
         if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
             self.batch_num = 0

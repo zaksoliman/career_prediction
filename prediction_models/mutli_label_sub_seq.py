@@ -4,15 +4,16 @@ from helpers.loader import load_data
 from helpers.batcher import MultiLabelBatcher as TrainBatcher
 from helpers.batcher import SequenceBatcher as TestBatcher
 from time import time
+from sklearn.metrics import roc_auc_score
 # from helpers.data_viz import print_dists
 import numpy as np
 import random
 from pprint import pprint
 
 
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
 class Model:
@@ -20,7 +21,7 @@ class Model:
     def __init__(self, train_inputs, train_targets, test_inputs, n_titles, class_mapping=None,
                  use_dropout=True, keep_prob=0.5, use_residual=False, num_layers=1, hidden_dim=512, freeze_emb=False,
                  max_grad_norm=5, embedding_dim=300, rnn_cell_type='LSTM', max_timesteps=33, learning_rate=0.001,
-                 batch_size=100, n_epochs=800, log_interval=2000, store_model=True, restore=True, log_dir=".log", name='',
+                 batch_size=100, n_epochs=800, log_interval=100, store_model=True, restore=True, log_dir=".log", name='',
                  store_dir="/data/rali7/Tmp/solimanz/data/models/"):
 
         self.log_interval = log_interval
@@ -48,7 +49,7 @@ class Model:
         self.use_residual = use_residual
         self.hparams = f"{name}_fasttext_mutlilabel_title_seq_{rnn_cell_type}_{num_layers}_" \
                        f"layers_cell_lr_{learning_rate}_freeze_emb={freeze_emb}_emb_dim={embedding_dim}_" \
-                       f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_inputs)}_vocab_size={self.n_tokens}"
+                       f"hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_inputs)}_nlabels={self.n_titles}"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
 
         self.build_model()
@@ -58,10 +59,14 @@ class Model:
         self._loss()
         self._train_accuracy()
         self._test_accuracy()
+        self._hamming_loss()
+        self._hinge_loss()
         self._optimize()
         self.train_summ_op = tf.summary.merge([
             self.train_acc_summ,
-            self.train_loss_summ
+            self.train_loss_summ,
+            self.hamming_summ,
+            self.hinge_loss_summ
         ])
         self.test_summ_op = tf.summary.merge([
             self.test_acc_summ
@@ -135,18 +140,23 @@ class Model:
                 logits=self.logits))
             self.train_loss_summ = tf.summary.scalar("train_xent", self.cross_entropy)
 
+    def _hinge_loss(self):
+        with tf.name_scope("hinge_loss"):
+            self.hinge = tf.losses.hinge_loss(self.targets, self.logits)
+            self.hinge_loss_summ = tf.summary.scalar("hinge_loss", self.hinge)
+
     def _optimize(self):
         with tf.name_scope("train"):
             #tvars = tf.trainable_variables()
             #optimizer = tf.train.AdamOptimizer(self.lr)
             #grads, _ = tf.clip_by_global_norm(tf.gradients(self.cross_entropy, tvars), self.max_grad_norm)
             #self.optimize = optimizer.apply_gradients(zip(grads, tvars))
-            self.optimize = tf.train.AdamOptimizer(learning_rate = self.lr).minimize(self.cross_entropy)
+            self.optimize = tf.train.AdamOptimizer(learning_rate = self.lr).minimize(self.hinge)
             return self.optimize
 
     def _train_accuracy(self):
         with tf.name_scope("train_accuracy"):
-            predicted_labels = tf.round(self.prediction)
+            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.int32)
             correct_prediction = tf.equal(predicted_labels, self.targets)
             self.train_accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.train_accuracy)
@@ -155,11 +165,28 @@ class Model:
     def _test_accuracy(self):
         # Check if at least one of the predicted labels is correct
         with tf.name_scope("test_accuracy"):
-            predicted_labels = tf.round(self.prediction)
-            correct_prediction = tf.equal(predicted_labels, self.targets)
-            self.test_accuracy = tf.reduce_sum(tf.cast(correct_prediction, tf.float32), axis=[0, 1])/self.batch_size
+            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.int32)
+
+            ground_truth = tf.argmax(self.targets, axis=1, output_type=tf.int32)
+            batch_range = tf.range(tf.shape(self.targets)[0], dtype=tf.int32)
+            indices = tf.stack([batch_range, ground_truth], axis=1)
+
+            label_predictions = tf.gather_nd(predicted_labels, indices)
+            correct_prediction = tf.equal(label_predictions, ground_truth)
+            self.test_accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.test_accuracy)
             return self.test_accuracy
+
+    def _hamming_loss(self):
+        with tf.name_scope("train_hamming_loss"):
+            predicted_labels = tf.cast(tf.round(self.prediction), dtype=tf.int32)
+            self.hamming_loss = tf.reduce_mean(tf.cast(
+                tf.logical_xor(
+                    tf.cast(self.targets, dtype=tf.bool),
+                    tf.cast(predicted_labels, dtype=tf.bool)),
+                dtype=tf.float32))
+            self.hamming_summ = tf.summary.scalar("hamming_loss", self.hamming_loss)
+            return self.hamming_loss
 
     def train(self):
 
@@ -182,7 +209,9 @@ class Model:
 
         with tf.Session(config=gpu_config) as sess:
 
-            sess.run(tf.global_variables_initializer())
+            #sess.run(tf.global_variables_initializer())
+            init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+            sess.run(init)
             self.writer.add_graph(sess.graph)
 
             print("Attempting to lead checkpoint...")
@@ -191,6 +220,7 @@ class Model:
             else:
                 print(" [!] Load failed...")
 
+            print("Started Training...")
             for e in range(self.n_epochs):
                 start_time = time()
                 batch = 0
@@ -198,10 +228,11 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, targets = train_batcher.next()
 
-                    loss, _, acc, summary = sess.run([
-                        self.cross_entropy,
+                    loss, _, acc, hamming_loss, summary = sess.run([
+                        self.hinge,
                         self.optimize,
                         self.train_accuracy,
+                        self.hamming_loss,
                         self.train_summ_op
                     ],
                     feed_dict= {
@@ -215,7 +246,8 @@ class Model:
                         elapsed = time() - start_time
                         print(
                             f"| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | "
-                            f"ms/batch {elapsed * 1000 / self.log_interval} | loss {loss:.10f} | acc: {acc*100:.2f}% | ")
+                            f"ms/batch {elapsed * 1000 / self.log_interval:.4f} | loss {loss:.10f} | acc: {acc*100:.2f}% | "
+                            f"hamming loss: {hamming_loss:.4f}")
 
                         start_time = time()
 
@@ -242,7 +274,7 @@ class Model:
                 print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}%")
                 print(f"Starting Epoch:, {(e + 1)}")
 
-                if self.store and e % 10 == 0:
+                if self.store and e % 5 == 0:
                     save_path = self.save(sess, self.checkpoint_dir, e)
                     print("model saved in file: %s" % save_path)
 

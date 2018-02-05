@@ -1,4 +1,5 @@
 import json
+import pickle
 from bidict import bidict
 
 
@@ -29,8 +30,12 @@ def load_data(data_path, bow=False, multi=False):
 
     print("Loading mapping and data")
 
-    with open(data_path) as data_file:
-        data = json.load(data_file)
+    if multi:
+        with open(data_path, 'rb') as data_file:
+            data = pickle.load(data_file)
+    else:
+        with open(data_path) as data_file:
+            data = json.load(data_file)
 
     title_to_id = bidict(data['title_to_id'])
 
