@@ -99,7 +99,7 @@ def _get_bow(funcs):
     Retruns (vocabulary to id mapping, tokenizer_pattrn)
     """
     sw = set(stopwords.words("english"))
-    joined = " ".join(funcs.index.values)
+    joined = " ".join(funcs)
     pattrn = re.compile(r"[-/,\.\\\s]")
     tokens = re.split(pattrn, joined)
     vocab = set(tokens)
@@ -239,4 +239,13 @@ if __name__ == '__main__':
     if args.representation == 'title_emb' or args.representation == 'all':
         print("Getting embeddings...")
         embeddings = get_job_embs(title_id)
+
+        if not os.path.exists(os.path.dirname(os.path.join(ds_path, "title_emb"))):
+            try:
+                os.makedirs(os.path.dirname(path))
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+        print("Saving embedding matix...")
         np.save(os.path.join(ds_path, "title_emb", "embeddings_small.npy"), embeddings)
+        print("All done! :-D")
