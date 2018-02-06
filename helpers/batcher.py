@@ -49,10 +49,9 @@ class Batcher:
 
 class BOW_Batcher:
 
-    def __init__(self, batch_size, step_num, input_data, target_data, n_classes, vocab_size, concat=False, shuffle=False, shuffle_seed=123):
+    def __init__(self, batch_size, step_num, data, n_classes, vocab_size, shuffle=False, shuffle_seed=123):
         print("Building batcher")
-        self.input_data = input_data  # sorted(self.data, key=lambda x: len(x), reverse=True)
-        self.target_data = target_data
+        self.data = data  # sorted(self.data, key=lambda x: len(x), reverse=True)
         if len(self.input_data) != len(self.target_data):
             print("Data not same size!!!")
         self.vocab_size = vocab_size
@@ -63,7 +62,6 @@ class BOW_Batcher:
         self.step_num = step_num
         self.n_classes = n_classes
         self.one_hot_lookup = np.eye(n_classes, dtype=np.int8)
-        self.concat = concat
 
     def next(self):
         batch_size = self.batch_size

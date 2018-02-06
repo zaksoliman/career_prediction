@@ -16,13 +16,14 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 class Model:
 
-    def __init__(self, train_data, n_titles, test_data=None, class_mapping=None, use_dropout=True, num_layers=1,
+    def __init__(self, train_data, n_titles, batcher, test_data=None, class_mapping=None, use_dropout=True, num_layers=1,
                  keep_prob=0.5, hidden_dim=250, use_attention=False, attention_dim=100, use_embedding=True, max_grad_norm=5,
                  embedding_dim=100, rnn_cell_type='LSTM', max_timesteps=31, learning_rate=0.001, batch_size=100,
                  n_epochs=800, log_interval=200, store_model=True, restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/",
                  log_dir=".log/", name=''):
 
         self.log_interval = log_interval
+        self.batcher = batcher
         self.titles_to_id = class_mapping
         self.restore = restore
         self.max_grad_norm = max_grad_norm
@@ -125,16 +126,18 @@ class Model:
                                                     dtype=tf.float32,
                                                     parallel_iterations=1024)
 
-        tf.summary.histogram("RNN_out", self.output)
+        batch_range = tf.range(tf.shape(self.output)[0])
+        indices = tf.stack([batch_range, self.seq_lengths - 1], axis=1)
+        self.last_output = tf.gather_nd(self.output, indices)
+
         output = tf.reshape(self.output, [-1, self.hidden_dim])
-        tf.summary.histogram("reshaped_output", output)
-
-
         self.logit = tf.layers.dense(output,
                                      self.n_titles,
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                     bias_initializer=tf.contrib.layers.xavier_initializer(), name="fc_logit")
+                                     bias_initializer=tf.contrib.layers.xavier_initializer(),
+                                     name="fc_logit")
+
         self.logit = tf.reshape(self.logit, [-1, self.max_timesteps, self.n_titles])
         prediction_softmax = tf.nn.softmax(self.logit, name="prediction")
         self.prediction = tf.reshape(prediction_softmax, [-1, self.max_timesteps, self.n_titles])
@@ -185,6 +188,9 @@ class Model:
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
 
+    def _acc_on_last(self):
+        pass
+
     def _accuracy_last(self):
         with tf.name_scope("accuracy_last"):
             correct = tf.equal(
@@ -200,7 +206,6 @@ class Model:
             self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
             self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
             return self.accuracy
-
 
     def _top_2_metric(self):
         with tf.name_scope("top_k_accs"):
@@ -284,8 +289,8 @@ class Model:
     def train(self):
 
         print("Creating batchers")
-        train_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data, n_classes=self.n_titles)
-        test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
+        train_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.train_data, n_classes=self.n_titles)
+        test_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto()
@@ -484,6 +489,9 @@ class Model:
             return True
         else:
             return False
+
+    def restore_metagraph(self, sess, checkpoint_dir):
+        pass
 
 def main():
     path = "/data/rali7/Tmp/solimanz/data/datasets/1/title_sequences.json"

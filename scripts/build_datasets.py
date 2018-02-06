@@ -38,9 +38,11 @@ def get_id_sets(dataset_ids, path):
     @:returns tuple (train_ids, test_ids)
     """
     if os.path.exists(os.path.dirname(os.path.join(path, 'train_ids.pkl'))):
+        print("Loading already existing train and test ids...")
         train_ids = load(os.path.join(path, 'train_ids.pkl'), pickle)
         test_ids = load(os.path.join(path, 'test_ids.pkl'), pickle)
     else:
+        print("Pre split train and test ids not found, randomly splitting now...")
         random.seed(1234)
         train_size = ceil(0.8 * len(dataset_ids))
         random.shuffle(dataset_ids)
@@ -240,12 +242,13 @@ if __name__ == '__main__':
         print("Getting embeddings...")
         embeddings = get_job_embs(title_id)
 
-        if not os.path.exists(os.path.dirname(os.path.join(ds_path, "title_emb"))):
+        if not os.path.exists(os.path.join(ds_path, "title_emb")):
+            print("Attempting to create directory...")
             try:
-                os.makedirs(os.path.dirname(path))
+                os.makedirs(os.path.join(ds_path, "title_emb"))
             except OSError as exc:  # Guard against race condition
                 if exc.errno != errno.EEXIST:
                     raise
-        print("Saving embedding matix...")
-        np.save(os.path.join(ds_path, "title_emb", "embeddings_small.npy"), embeddings)
+        print("Saving embedding matrix...")
+        np.save(os.path.join(ds_path, "title_emb", "embeddings.npy"), embeddings)
         print("All done! :-D")
