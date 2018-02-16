@@ -131,6 +131,7 @@ class Model:
 
         self.prediction = tf.nn.sigmoid(self.logits, name="predictions")
 
+
         return self.prediction
 
     def _loss(self):

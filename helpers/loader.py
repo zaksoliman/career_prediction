@@ -27,8 +27,8 @@ def load_data(data_path, bow=False, multi=False):
 #
 #     }
 #     """
-
     print("Loading mapping and data")
+    print(f"Reading {data_path}")
 
     if multi:
         with open(data_path, 'rb') as data_file:
@@ -45,12 +45,12 @@ def load_data(data_path, bow=False, multi=False):
         max_seq_len = 33
 
     if bow:
-        train_inputs = data["train_inputs"]
+        train_inputs = data["train_data"]
         train_targets = data["train_targets"]
-        test_inputs = data["test_inputs"]
+        test_inputs = data["test_data"]
         test_targets = data["test_targets"]
-        vocab_id = data["vocab_id"]
-        return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, vocab_id, max_seq_len
+        vocab_size = data["vocab_size"]
+        return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, vocab_size
     if multi:
         train_inputs = data["sequences"]
         train_targets = data["multi_label_targets"]
