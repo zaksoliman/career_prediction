@@ -199,6 +199,7 @@ class Model:
                 values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
                 labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
                 self.labels = tf.reshape(labels, [-1, 1])
+                self.eqs = tf.equal(indices, self.labels)
                 self.correct = tf.reduce_max(tf.cast(tf.equal(indices, self.labels), dtype=tf.int32), reduction_indices=1)
 
                 self.top_2_acc = tf.reduce_mean(self.correct)
@@ -287,7 +288,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, preds, t, labels, correct = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, preds, t, labels, correct, eq = sess.run([
                         self.loss,
                         self.optimize,
                         self.accuracy,
@@ -299,7 +300,8 @@ class Model:
                         self.prediction,
                         self.last_target,
                         self.labels,
-                        self.correct
+                        self.correct,
+                        self.eqs
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -312,6 +314,7 @@ class Model:
                     print(t.shape)
                     print(labels.shape)
                     print(correct.shape)
+                    print(eq.shape)
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
