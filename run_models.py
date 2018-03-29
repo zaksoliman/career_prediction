@@ -22,7 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
     model = None
-    model_name = args.representation
+    model_name = args.representation + "last_loss"
 
     if args.model == 'simple_rnn':
         if args.representation == 'jobid':
