@@ -185,7 +185,7 @@ class Model:
     def _accuracy(self):
         with tf.name_scope("accuracy"):
             correct = tf.equal(
-                tf.argmax(self.last_pred, axis=1, output_type=tf.int32),
+                tf.argmax(self.prediction, axis=1, output_type=tf.int32),
                 tf.argmax(self.last_target, axis=1, output_type=tf.int32))
             correct = tf.cast(correct, tf.float32)
             self.accuracy =  tf.reduce_mean(correct)
