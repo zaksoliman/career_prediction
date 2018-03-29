@@ -310,11 +310,7 @@ class Model:
                             self.dropout: self.keep_prob
                         })
 
-                    print(preds.shape)
-                    print(t.shape)
-                    print(labels.shape)
-                    print(correct.shape)
-                    print(eq.shape)
+                    print(correct)
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
