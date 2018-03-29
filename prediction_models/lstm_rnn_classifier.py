@@ -198,8 +198,8 @@ class Model:
             with tf.name_scope("top_2"):
                 values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
                 labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                labels = tf.reshape(labels, [-1, 1])
-                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                self.labels = tf.reshape(labels, [-1, 1])
+                self.correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
                 self.top_2_acc = tf.reduce_mean(correct)
 
@@ -287,7 +287,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, preds, t, labels, correct = sess.run([
                         self.loss,
                         self.optimize,
                         self.accuracy,
@@ -295,7 +295,11 @@ class Model:
                         self.top_3_acc,
                         self.top_4_acc,
                         self.top_5_acc,
-                        self.train_summ_op
+                        self.train_summ_op,
+                        self.prediction,
+                        self.last_target,
+                        self.labels,
+                        self.correct
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -304,13 +308,17 @@ class Model:
                             self.dropout: self.keep_prob
                         })
 
+                    print(preds.shape)
+                    print(t.shape)
+                    print(labels.shape)
+                    print(correct.shape)
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
                             f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
                             f'ms/batch {elapsed * 1000 / self.log_interval:.2f} | loss {loss:.3f} | acc: {acc*100:.2f} |'
-                            f' | top 2 acc: {top_2_acc*100:.2f}'
-                            f' | top 3 acc: {top_3_acc*100:.2f} | top 4 acc: {top_4_acc*100:.2f} | top 5 acc: {top_5_acc*100:.2f}')
+                            f' top 2 acc: {top_2_acc*100:.2f} | top 3 acc: {top_3_acc*100:.2f} | top 4 acc: {top_4_acc*100:.2f}'
+                            f' | top 5 acc: {top_5_acc*100:.2f}')
 
                         start_time = time()
 
@@ -329,9 +337,8 @@ class Model:
                     with tf.device("/cpu:0"):
                         test_title_seq, test_seq_lengths, test_target = test_batcher.next()
 
-                    test_acc, test_lst_acc, test_loss, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([
+                    test_acc, test_loss, test_top_2, test_top_3, test_top_4, test_top_5, test_summ, pred = sess.run([
                         self.accuracy,
-                        self.last_accuracy,
                         self.loss,
                         self.top_2_acc,
                         self.top_3_acc,
