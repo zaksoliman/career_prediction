@@ -198,11 +198,10 @@ class Model:
             with tf.name_scope("top_2"):
                 values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
                 labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                self.labels = tf.reshape(labels, [-1, 1])
-                self.eqs = tf.equal(indices, self.labels)
-                self.correct = tf.reduce_max(tf.cast(tf.equal(indices, self.labels), dtype=tf.int32), reduction_indices=1)
+                labels = tf.reshape(labels, [-1, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_2_acc = tf.reduce_mean(self.correct)
+                self.top_2_acc = tf.reduce_mean(correct)
 
                 self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
                 self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
@@ -296,12 +295,7 @@ class Model:
                         self.top_3_acc,
                         self.top_4_acc,
                         self.top_5_acc,
-                        self.train_summ_op,
-                        self.prediction,
-                        self.last_target,
-                        self.labels,
-                        self.correct,
-                        self.eqs
+                        self.train_summ_op
                     ],
                         {
                             self.titles_input_data: title_seq,
@@ -310,7 +304,6 @@ class Model:
                             self.dropout: self.keep_prob
                         })
 
-                    print(correct)
                     if batch % self.log_interval == 0 and batch > 0:
                         elapsed = time() - start_time
                         print(
