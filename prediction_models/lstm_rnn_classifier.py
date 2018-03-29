@@ -201,7 +201,7 @@ class Model:
                 labels = tf.reshape(labels, [-1, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_2_acc = tf.reduce_mean(correct)
+                self.top_2_acc = tf.reduce_mean(correct, dtype=tf.float32)
 
                 self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
                 self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
@@ -217,7 +217,7 @@ class Model:
                 labels = tf.reshape(labels, [-1, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_3_acc = tf.reduce_mean(correct)
+                self.top_3_acc = tf.reduce_mean(correct, dtype=tf.float32)
                 self.train_top_3_summ = tf.summary.scalar("training_top_3_accuracy", self.top_3_acc)
                 self.test_top_3_summ = tf.summary.scalar("test_top_3_accuracy", self.top_3_acc)
 
@@ -232,7 +232,7 @@ class Model:
                 labels = tf.reshape(labels, [-1, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_4_acc = tf.reduce_mean(correct)
+                self.top_4_acc = tf.reduce_mean(correct, dtype=tf.float32)
                 self.train_top_4_summ = tf.summary.scalar("training_top_4_accuracy", self.top_4_acc)
                 self.test_top_4_summ = tf.summary.scalar("test_top_4_accuracy", self.top_4_acc)
 
@@ -247,7 +247,7 @@ class Model:
                 labels = tf.reshape(labels, [-1, 1])
                 correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_5_acc = tf.reduce_mean(correct)
+                self.top_5_acc = tf.reduce_mean(correct, dtype=tf.float32)
                 self.train_top_5_summ =tf.summary.scalar("training_top_5_accuracy", self.top_5_acc)
                 self.test_top_5_summ = tf.summary.scalar("test_top_5_accuracy", self.top_5_acc)
 
