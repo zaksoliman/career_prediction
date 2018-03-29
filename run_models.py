@@ -74,7 +74,7 @@ if __name__ == '__main__':
                 train_targets=train_targets,
                 test_targets=test_targets,
                 use_dropout=True,
-                num_layers=1,
+                num_layers=2,
                 keep_prob=0.5,
                 hidden_dim=250,
                 use_attention=False,
