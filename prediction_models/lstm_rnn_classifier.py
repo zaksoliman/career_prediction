@@ -199,7 +199,7 @@ class Model:
                 values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
                 labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
                 self.labels = tf.reshape(labels, [-1, 1])
-                self.correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                self.correct = tf.reduce_max(tf.cast(tf.equal(indices, self.labels), dtype=tf.int32), reduction_indices=1)
 
                 self.top_2_acc = tf.reduce_mean(self.correct)
 
