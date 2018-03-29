@@ -287,7 +287,7 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary, preds, t, labels, correct, eq = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
                         self.loss,
                         self.optimize,
                         self.accuracy,
