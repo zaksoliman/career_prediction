@@ -309,7 +309,7 @@ class Model:
                         print(
                             f'| epoch {e} | {train_batcher.batch_num}/{train_batcher.max_batch_num} batches | lr {self.lr} | '
                             f'ms/batch {elapsed * 1000 / self.log_interval:.2f} | loss {loss:.3f} | acc: {acc*100:.2f} |'
-                            f' lst acc: {last_acc*100:.2f} | top 2 acc: {top_2_acc*100:.2f}'
+                            f' | top 2 acc: {top_2_acc*100:.2f}'
                             f' | top 3 acc: {top_3_acc*100:.2f} | top 4 acc: {top_4_acc*100:.2f} | top 5 acc: {top_5_acc*100:.2f}')
 
                         start_time = time()
