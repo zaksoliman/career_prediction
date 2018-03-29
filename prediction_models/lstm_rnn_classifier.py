@@ -287,11 +287,10 @@ class Model:
                     with tf.device("/cpu:0"):
                         title_seq, seq_lengths, target = train_batcher.next()
 
-                    loss, _, acc, last_acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
+                    loss, _, acc, top_2_acc, top_3_acc, top_4_acc, top_5_acc, summary = sess.run([
                         self.loss,
                         self.optimize,
                         self.accuracy,
-                        self.last_accuracy,
                         self.top_2_acc,
                         self.top_3_acc,
                         self.top_4_acc,
@@ -321,7 +320,6 @@ class Model:
 
                 avg_acc = []
                 tst_loss = []
-                avg_lst_acc = []
                 avg_top_2 = []
                 avg_top_3 = []
                 avg_top_4 = []
@@ -351,8 +349,6 @@ class Model:
 
                     if test_acc > 0:
                         avg_acc.append(test_acc)
-                    if test_lst_acc > 0:
-                        avg_lst_acc.append(test_lst_acc)
                     if test_top_2 > 0:
                         avg_top_2.append(test_top_2)
                     if test_top_3 > 0:
@@ -368,7 +364,6 @@ class Model:
                     self.writer.add_summary(test_summ, tb)
 
                 print(f"Loss on test: {sum(tst_loss)/len(tst_loss):.2f}")
-                print(f"Accuracy on test (on last classification): {sum(avg_lst_acc)/len(avg_lst_acc)*100:.2f}")
                 print(f"Accuracy on test: {sum(avg_acc)/len(avg_acc)*100:.2f}")
                 print(f"Top 2 accuracy on test: {sum(avg_top_2)/len(avg_top_2)*100:.2f}")
                 print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}")
