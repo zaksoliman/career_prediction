@@ -60,14 +60,12 @@ class Model:
         self._predict()
         self._loss()
         self._accuracy()
-        self._accuracy_last()
         self._optimize()
         self._top_2_metric()
         self._top_3_metric()
         self._top_4_metric()
         self._top_5_metric()
         self.train_summ_op = tf.summary.merge([
-            self.train_acc_summ,
             self.train_loss_summ,
             self.train_last_acc_summ,
             self.train_top_2_summ,
@@ -75,7 +73,6 @@ class Model:
             self.train_top_4_summ,
             self.train_top_5_summ])
         self.test_summ_op = tf.summary.merge([
-            self.test_acc_summ,
             self.test_loss_summ,
             self.test_last_acc_summ,
             self.test_top_2_summ,

@@ -1,6 +1,7 @@
 from helpers.loader import load_data
 import argparse
-from prediction_models.title_seq_rnn import Model
+#from prediction_models.title_seq_rnn import Model
+from prediction_models.lstm_rnn_classifier import Model
 from prediction_models.MLP import FeedFowardModel
 from helpers.batcher import Batcher, BOW_Batcher
 import numpy as np
@@ -21,6 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
     model = None
+    model_name = args.representation
 
     if args.model == 'simple_rnn':
         if args.representation == 'jobid':
@@ -55,7 +57,7 @@ if __name__ == '__main__':
                 restore=True,
                 store_dir="/data/rali7/Tmp/solimanz/data/models/",
                 log_dir=".log/",
-                name=args.representation,
+                name=model_name,
                 emb_path=''
             )
         elif args.representation == 'bow':
@@ -94,7 +96,7 @@ if __name__ == '__main__':
                 restore=True,
                 store_dir="/data/rali7/Tmp/solimanz/data/models/",
                 log_dir=".log/",
-                name=args.representation,
+                name=model_name,
                 emb_path=''
             )
         elif args.representation == 'title_emb':
@@ -130,7 +132,7 @@ if __name__ == '__main__':
                 restore=True,
                 store_dir="/data/rali7/Tmp/solimanz/data/models/",
                 log_dir=".log/",
-                name=args.representation,
+                name=model_name,
                 emb_path=emb_path
             )
     elif args.model == 'mlp':
