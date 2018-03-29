@@ -201,7 +201,7 @@ class Model:
                 self.labels = tf.reshape(labels, [-1, 1])
                 self.correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
 
-                self.top_2_acc = tf.reduce_mean(correct)
+                self.top_2_acc = tf.reduce_mean(self.correct)
 
                 self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
                 self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
