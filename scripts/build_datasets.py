@@ -19,6 +19,8 @@ import errno
 import random
 import re
 
+DataPoint = namedtuple('DataPoint', ['id', 'sequence'])
+
 def get_top_k_funcs(k, df, df_col):
     """
     @:returns The the sub series of the top-k unique job title counts
@@ -93,7 +95,7 @@ def get_sequences(df, df_col, title_id, train_ids, test_ids, use_ids=True):
     @:returns tuple of (train_sequences, test_sequences)
     """
     func_series = df.groupby('_id')[df_col].apply(lambda x: list(reversed(list(x))))
-    DataPoint = namedtuple('DataPoint', ['id', 'sequence'])
+
     if use_ids:
         train_data = [DataPoint(i, [title_id[title] for title in func_series[i]]) for i in train_ids]
         test_data = [DataPoint(i, [title_id[title] for title in func_series[i]]) for i in test_ids]
@@ -134,8 +136,8 @@ def as_bows(df, df_col, title_id, train_ids, test_id, tf_idf=True):
         token_indices = [vocab_id[tok] for tok in tokens if tok in vocab_id]
         bow[title] = sorted(token_indices)
 
-    train = [[bow[title] for title in seq[:-1]] for seq in train]
-    test = [[bow[title] for title in seq[:-1]] for seq in test]
+    train = [DataPoint(ex.id, [bow[title] for title in ex.sequence[:-1]]) for ex in train]
+    test = [DataPoint(ex.id, [bow[title] for title in ex.sequence[:-1]]) for ex in test]
 
     return train, test, vocab_id
 
@@ -235,8 +237,8 @@ if __name__ == '__main__':
             print("Getting job title id sequences...")
             train, test = get_sequences(df, df_col, title_id, train_ids, test_ids)
 
-            max_train_seq = max([len(seq) for seq in train])
-            max_test_seq = max([len(seq) for seq in test])
+            max_train_seq = max([len(ex.sequence) for ex in train])
+            max_test_seq = max([len(ex.sequence) for ex in test])
 
             print(f"Maximum length of training sequences : {max_train_seq}"
                   f"\nMaximum length of test sequences: {max_test_seq}")
@@ -257,11 +259,11 @@ if __name__ == '__main__':
             train_bow, test_bow, vocab = as_bows(df, df_col, title_id, train_ids, test_ids)
             train, test = get_sequences(df, df_col, title_id, train_ids, test_ids)
 
-            max_train_seq = max([len(seq) for seq in train_bow])
-            max_test_seq = max([len(seq) for seq in test_bow])
+            max_train_seq = max([len(ex.sequence) for ex in train_bow])
+            max_test_seq = max([len(ex.sequence) for ex in test_bow])
 
-            train_targets = [s[1:] for s in train]
-            test_targets =  [s[1:] for s in test]
+            train_targets = [DataPoint(ex.id, ex.sequence[1:]) for ex in train]
+            test_targets =  [DataPoint(ex.id, ex.sequence[1:]) for ex in test]
 
             print(f"Maximum length of training sequences : {max_train_seq}"
                   f"\nMaximum length of test sequences: {max_test_seq}")
@@ -295,14 +297,14 @@ if __name__ == '__main__':
     elif args.model == 'mlp':
 
         train, test = get_sequences(df, df_col, title_id, train_ids, test_ids, use_ids=False)
-        train_targets = [title_id[seq[-1]] for seq in train]
-        test_targets = [title_id[seq[-1]] for seq in test]
+        train_targets = [title_id[ex.sequence[-1]] for ex in train]
+        test_targets = [title_id[ex.sequence[-1]] for ex in test]
 
         train_targets = np.eye(len(title_id))[train_targets]
         test_targets = np.eye(len(title_id))[test_targets]
 
-        train = [" ".join(seq[:-1]) for seq in train]
-        test = [" ".join(seq[:-1]) for seq in test]
+        train = [" ".join(ex.sequence[:-1]) for ex in train]
+        test = [" ".join(ex.sequence[:-1]) for ex in test]
 
         if args.representation == 'bow' or args.representation == 'all':
 
