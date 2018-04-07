@@ -49,7 +49,7 @@ def load_data(data_path, bow=False, multi=False):
         train_targets = data["train_targets"]
         test_inputs = data["test_data"]
         test_targets = data["test_targets"]
-        vocab_size = data["vocab_size"]
+        vocab_size = len(data["vocab"])
         return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, vocab_size
     if multi:
         train_inputs = data["sequences"]

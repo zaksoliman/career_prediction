@@ -22,14 +22,18 @@ def get_top_k_funcs(k, df, df_col):
     """
     @:returns The the sub series of the top-k unique job title counts
     """
-    return df[df_col].value_counts()[:k]
+    toplist = df[df_col].value_counts()
+    last_count = toplist[k]
+    return toplist[toplist >= last_count].index.values
 
 def get_valid_ids(df, toplist, df_col):
     """
     @returns the set of user profile IDs that only use job titles within the toplist.
     """
-    bad_ids = df[~df[df_col].isin(toplist.index)]["_id"].unique()
+
+    bad_ids = df[~df[df_col].isin(toplist)]["_id"].unique()
     all_ids = df["_id"].unique()
+
     return  list(set(all_ids) - set(bad_ids))
 
 def get_id_sets(dataset_ids, path, use_cached=False):
@@ -132,7 +136,7 @@ def as_bows(df, df_col, title_id, train_ids, test_id, tf_idf=True):
     train = [[bow[title] for title in seq[:-1]] for seq in train]
     test = [[bow[title] for title in seq[:-1]] for seq in test]
 
-    return train, test, len(vocab_id)
+    return train, test, vocab_id
 
 def get_job_embs(title_id, emb_dim=300, model_path="/data/rali7/Tmp/solimanz/data/wikipedia/wiki.en.bin"):
     """
@@ -179,18 +183,24 @@ if __name__ == '__main__':
     data_repr = ['jobid', 'bow', 'title_emb']
 
     # Setting path for saving data
-
     if args.model == 'simple_rnn':
         ds_path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
     else:
         ds_path = f"/data/rali7/Tmp/solimanz/data/datasets/feed_forward/{args.dataset}"
 
+    # Name of the data file
     if args.model =='simple_rnn':
         ds_file_name = "title_sequences"
     else:
         ds_file_name = "data"
 
-    k = 550 if args.dataset == 'top550' else 7000
+    # Set number of labels
+    if args.dataset == 'top550':
+        k = 550
+    else :
+        k = 7000
+
+    # Get the column of the coressponding the the dataset
     df_col = col_options[args.dataset]
     ds = args.dataset
     df_path = "/data/rali7/Tmp/solimanz/data/pickles/excerpt-2017-02-20_reduced.pkl"
@@ -199,21 +209,17 @@ if __name__ == '__main__':
     df = pd.read_pickle(df_path)
     print("Successfully loaded dataframe... :-D")
     top = get_top_k_funcs(k, df, df_col)
-
+    print(f"Number of job labels: {len(top)}")
     dataset_ids = get_valid_ids(df, top, df_col)
-    # Get the relevent job experiences
-    print("Filtering out irrelevent users...")
-    df = df[df._id.isin(dataset_ids)]
     print(f"Size of entire dataset: {len(dataset_ids)}")
 
     print("Mapping job titles to integer ids...")
-    job_titles = top.index.values
-    title_id = {title: i for i, title in enumerate(job_titles)}
+    title_id = {title: i for i, title in enumerate(top)}
     print(f"Number of unique job titles: {len(title_id)}")
 
     print("Splitting up dataset (test/train)...")
     train_ids, test_ids = get_id_sets(dataset_ids, f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}",
-                                      use_cached=True)
+                                      use_cached=False)
     print(f"Size of train: {len(train_ids)}\nSize of test: {len(test_ids)}")
 
     print("Saving test and train id lists...")
@@ -247,7 +253,7 @@ if __name__ == '__main__':
 
         if args.representation == 'bow' or args.representation == 'all':
             print("Getting job title bow sequences...")
-            train_bow, test_bow, vocab_size = as_bows(df, df_col, title_id, train_ids, test_ids)
+            train_bow, test_bow, vocab = as_bows(df, df_col, title_id, train_ids, test_ids)
             train, test = get_sequences(df, df_col, title_id, train_ids, test_ids)
 
             max_train_seq = max([len(seq) for seq in train_bow])
@@ -265,7 +271,7 @@ if __name__ == '__main__':
                 'test_data': test_bow,
                 'train_targets': train_targets,
                 'test_targets': test_targets,
-                'vocab_size': vocab_size,
+                'vocab': vocab,
                 'maximum_seq_len': max(max_train_seq, max_test_seq)
             }
             dump(os.path.join(ds_path, 'bow', 'data.json'), json, data)

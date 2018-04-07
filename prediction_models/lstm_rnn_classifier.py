@@ -266,7 +266,7 @@ class Model:
             test_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
-        gpu_config = tf.ConfigProto()
+        gpu_config = tf.ConfigProto(log_device_placement=True)
         gpu_config.gpu_options.allow_growth = True
 
         with tf.Session(config=gpu_config) as sess:
