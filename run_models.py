@@ -22,7 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
     model = None
-    model_name = args.representation + "last_loss"
+    model_name = args.representation
 
     if args.model == 'simple_rnn':
         if args.representation == 'jobid':
@@ -49,7 +49,7 @@ if __name__ == '__main__':
                 max_timesteps=max_seq_len,
                 use_bow=False,
                 vocab_size=-1,
-                learning_rate=0.0005,
+                learning_rate=0.001,
                 batch_size=200,
                 n_epochs=800,
                 log_interval=100,
@@ -88,7 +88,7 @@ if __name__ == '__main__':
                 max_timesteps=max_seq_len,
                 use_bow=True,
                 vocab_size=vocab_size,
-                learning_rate=0.0005,
+                learning_rate=0.001,
                 batch_size=200,
                 n_epochs=800,
                 log_interval=100,

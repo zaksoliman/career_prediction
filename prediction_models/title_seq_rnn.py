@@ -49,7 +49,7 @@ class Model:
         self.use_bow = use_bow
         self.vocab_size = vocab_size
         self.name = name
-        self.hparams = f"{name}_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
+        self.hparams = f"{name}_lang_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
                        f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
                        f"fasttext={use_fasttex}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")

@@ -10,6 +10,7 @@ from pyfasttext import FastText
 import argparse
 import json
 import numpy as np
+from collections import namedtuple
 import os
 import pandas as pd
 import pickle
@@ -92,13 +93,13 @@ def get_sequences(df, df_col, title_id, train_ids, test_ids, use_ids=True):
     @:returns tuple of (train_sequences, test_sequences)
     """
     func_series = df.groupby('_id')[df_col].apply(lambda x: list(reversed(list(x))))
-
+    DataPoint = namedtuple('DataPoint', ['id', 'sequence'])
     if use_ids:
-        train_data = [[title_id[title] for title in func_series[i]] for i in train_ids]
-        test_data = [[title_id[title] for title in func_series[i]] for i in test_ids]
+        train_data = [DataPoint(i, [title_id[title] for title in func_series[i]]) for i in train_ids]
+        test_data = [DataPoint(i, [title_id[title] for title in func_series[i]]) for i in test_ids]
     else:
-        train_data = [[title for title in func_series[i]] for i in train_ids]
-        test_data = [[title for title in func_series[i]] for i in test_ids]
+        train_data = [DataPoint(i, [title for title in func_series[i]]) for i in train_ids]
+        test_data = [DataPoint(i, [title for title in func_series[i]]) for i in test_ids]
 
     return train_data, test_data
 
