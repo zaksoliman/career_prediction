@@ -31,7 +31,7 @@ class Batcher:
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
-            example = self.data[self.batch_num * self.batch_size + i]
+            example = self.data[self.batch_num * self.batch_size + i][0]
             seq = example[:-1]
             target = example[1:]
             seqs[i, :len(seq)] = seq
@@ -76,8 +76,8 @@ class BOW_Batcher:
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
-            input_seq = self.input_data[self.batch_num * self.batch_size + i]
-            target_seq = self.target_data[self.batch_num * self.batch_size + i]
+            input_seq = self.input_data[self.batch_num * self.batch_size + i][0]
+            target_seq = self.target_data[self.batch_num * self.batch_size + i][0]
 
             for j, bow in enumerate(input_seq):
                 for word in bow:
