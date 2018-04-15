@@ -31,7 +31,7 @@ class Batcher:
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
-            example = self.data[self.batch_num * self.batch_size + i][0]
+            example = self.data[self.batch_num * self.batch_size + i][1]
             seq = example[:-1]
             target = example[1:]
             seqs[i, :len(seq)] = seq
@@ -76,8 +76,8 @@ class BOW_Batcher:
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
         for i in range(batch_size):
-            input_seq = self.input_data[self.batch_num * self.batch_size + i][0]
-            target_seq = self.target_data[self.batch_num * self.batch_size + i][0]
+            input_seq = self.input_data[self.batch_num * self.batch_size + i][1]
+            target_seq = self.target_data[self.batch_num * self.batch_size + i][1]
 
             for j, bow in enumerate(input_seq):
                 for word in bow:
@@ -99,9 +99,9 @@ class BOW_Batcher:
 
 class MultiLabelBatcher:
 
-    def __init__(self, batch_size, step_num, input_data, target_data, n_classes, shuffle_seed=123, concat=False):
+    def __init__(self, batch_size, step_num, input_data, target_data, n_classes, shuffle_seed=123):
         print("Building batcher")
-        self.input_data = input_data  # sorted(self.data, key=lambda x: len(x), reverse=True)
+        self.input_data = input_data
         self.target_data = target_data
         if len(self.input_data) != len(self.target_data):
             print("Data not same size!!!")
@@ -111,7 +111,6 @@ class MultiLabelBatcher:
         self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
         self.step_num = step_num
         self.n_classes = n_classes
-        self.concat = concat
         np.random.seed(shuffle_seed)
 
     def next(self):

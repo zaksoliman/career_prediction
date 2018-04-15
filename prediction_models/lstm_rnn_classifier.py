@@ -266,7 +266,7 @@ class Model:
             test_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps,  data=self.test_data, n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
-        gpu_config = tf.ConfigProto(log_device_placement=True)
+        gpu_config = tf.ConfigProto(log_device_placement=False)
         gpu_config.gpu_options.allow_growth = True
 
         with tf.Session(config=gpu_config) as sess:
@@ -369,7 +369,7 @@ class Model:
                 print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}")
                 print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}")
                 print(f"Loss on test: {test_loss:.2f}")
-                if self.store and e % 10 == 0:
+                if self.store and e % 5 == 0:
                     save_path = self.save(sess, self.checkpoint_dir, e)
                     print("model saved in file: %s" % save_path)
 
@@ -377,10 +377,15 @@ class Model:
 
         base_path = "/data/rali7/Tmp/solimanz/data/model_predictions"
 
-        if self.n_titles == 550:
-            path = os.path.join(base_path, 'top550', self.name)
-        elif self.n_titles == 7000:
-            path = os.path.join(base_path, 'reduced7000', self.name)
+        if self.name == 'title_emb':
+            folder = 'fasttext'
+        else:
+            folder = self.name
+
+        if self.n_titles == 551:
+            path = os.path.join(base_path, 'top550', folder)
+        elif self.n_titles == 7003:
+            path = os.path.join(base_path, 'reduced7k', folder)
         else:
             print("Number of job title labels doesn't match 550 or 7000")
             return
@@ -394,7 +399,7 @@ class Model:
                                         n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
-        gpu_config = tf.ConfigProto()
+        gpu_config = tf.ConfigProto(log_device_placement=False)
         gpu_config.gpu_options.allow_growth = True
 
         with tf.Session(config=gpu_config) as sess:

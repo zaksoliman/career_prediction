@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('-ds', '--dataset', required=True, help='Choose dataset',
                     choices=['top550', 'reduced7000'])
     parser.add_argument('-r', '--representation', required=True, help='Choose a method to represent textual data',
-                        choices=['jobid', 'bow', 'title_emb', 'emb'])
+                        choices=['jobid', 'bow', 'fasttext', 'emb'])
     parser.add_argument('-m', '--model', required=True, choices=['mlp', 'simple_rnn'])
     parser.add_argument('-t', '--task', required=True,
                         choices=['train', 'test'])
@@ -22,7 +22,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
     model = None
-    model_name = args.representation
+
+    if args.representation == 'fasttext':
+        model_name = 'title_emb'
+    else:
+        model_name = args.representation
 
     if args.model == 'simple_rnn':
         if args.representation == 'jobid':
@@ -51,7 +55,7 @@ if __name__ == '__main__':
                 vocab_size=-1,
                 learning_rate=0.001,
                 batch_size=200,
-                n_epochs=800,
+                n_epochs=1000,
                 log_interval=100,
                 store_model=True,
                 restore=True,
@@ -90,7 +94,7 @@ if __name__ == '__main__':
                 vocab_size=vocab_size,
                 learning_rate=0.001,
                 batch_size=200,
-                n_epochs=800,
+                n_epochs=1000,
                 log_interval=100,
                 store_model=True,
                 restore=True,
@@ -99,7 +103,7 @@ if __name__ == '__main__':
                 name=model_name,
                 emb_path=''
             )
-        elif args.representation == 'title_emb':
+        elif args.representation == 'fasttext':
             emb_path = os.path.join(path, args.representation, 'embeddings.npy')
             title_to_id, train_data, test_data, max_seq_len = load_data(os.path.join(path, 'jobid', 'data.json'))
             model = Model(
@@ -110,9 +114,9 @@ if __name__ == '__main__':
                 train_targets=None,
                 test_targets=None,
                 use_dropout=True,
-                num_layers=2,
+                num_layers=1,
                 keep_prob=0.5,
-                hidden_dim=100,
+                hidden_dim=250,
                 use_attention=False,
                 attention_dim=100,
                 use_embedding=True,
@@ -125,8 +129,8 @@ if __name__ == '__main__':
                 use_bow=False,
                 vocab_size=-1,
                 learning_rate=0.001,
-                batch_size=100,
-                n_epochs=800,
+                batch_size=200,
+                n_epochs=1000,
                 log_interval=100,
                 store_model=True,
                 restore=True,
@@ -156,10 +160,10 @@ if __name__ == '__main__':
             input_dim=X_train.shape[1],
             n_labels=train_targets.shape[1],
             learning_rate=0.01,
-            n_epochs=100,
+            n_epochs=1000,
             batch_size=500,
-            n_layers=2,
-            hiddden_dim=512,
+            n_layers=1,
+            hiddden_dim=252,
             use_emb=args.representation == 'emb',
             ds_name=args.dataset
         )

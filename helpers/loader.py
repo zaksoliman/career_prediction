@@ -31,8 +31,8 @@ def load_data(data_path, bow=False, multi=False):
     print(f"Reading {data_path}")
 
     if multi:
-        with open(data_path, 'rb') as data_file:
-            data = pickle.load(data_file)
+        with open(data_path, 'r') as data_file:
+            data = json.load(data_file)
     else:
         with open(data_path) as data_file:
             data = json.load(data_file)
@@ -52,10 +52,12 @@ def load_data(data_path, bow=False, multi=False):
         vocab_size = len(data["vocab"])
         return  title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, vocab_size
     if multi:
-        train_inputs = data["sequences"]
-        train_targets = data["multi_label_targets"]
+        train_inputs = data["train_data"]
+        train_targets = data["train_targets"]
         test_inputs = data["test_data"]
-        return title_to_id, train_inputs, train_targets, test_inputs, max_seq_len
+        test_targets = data["test_targets"]
+        n_labels = data['n_labels']
+        return title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, n_labels
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len
