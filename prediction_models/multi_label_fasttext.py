@@ -303,7 +303,7 @@ class Model:
                                     self.dropout: 1.0
                                 })
 
-                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred)
+                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
                 np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), seqs_length)
                 np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), targets)
                 np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), input_seqs)

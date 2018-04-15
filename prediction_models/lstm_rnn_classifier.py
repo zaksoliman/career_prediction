@@ -392,10 +392,10 @@ class Model:
 
         print("Creating batchers")
         if self.use_bow:
-            test_batcher = self.batcher(self.batch_size, self.max_timesteps, self.test_data, self.test_targets,
+            test_batcher = self.batcher(1000, self.max_timesteps, self.test_data, self.test_targets,
                                         self.n_titles, self.vocab_size)
         else:
-            test_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps, data=self.test_data,
+            test_batcher = self.batcher(batch_size=1000, step_num=self.max_timesteps, data=self.test_data,
                                         n_classes=self.n_titles)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
@@ -429,7 +429,7 @@ class Model:
                                     self.dropout: 1.0
                                 })
 
-                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred)
+                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
                 np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
                 np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
                 np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
