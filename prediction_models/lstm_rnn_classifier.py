@@ -414,8 +414,11 @@ class Model:
             print(f"Number of batches: {test_batcher.max_batch_num}")
             print(f"Size of dataset: {len(self.test_data)}")
             print(f"Batch Size: {self.batch_size}")
+            
+            #test_batcher.batch_num = 145
+            test_batcher.batch_num = 121
 
-            for tb in range(test_batcher.max_batch_num):
+            for tb in range(121, test_batcher.max_batch_num):
 
                 print(f"Batch #{tb}")
                 with tf.device("/cpu:0"):
