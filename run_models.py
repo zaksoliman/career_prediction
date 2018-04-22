@@ -1,7 +1,7 @@
 from helpers.loader import load_data
 import argparse
-#from prediction_models.title_seq_rnn import Model
-from prediction_models.lstm_rnn_classifier import Model
+from prediction_models.title_seq_rnn import Model
+#from prediction_models.lstm_rnn_classifier import Model
 from prediction_models.MLP import FeedFowardModel
 from helpers.batcher import Batcher, BOW_Batcher
 import numpy as np
