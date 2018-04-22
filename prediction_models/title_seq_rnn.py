@@ -49,9 +49,10 @@ class Model:
         self.use_bow = use_bow
         self.vocab_size = vocab_size
         self.name = name
-        self.hparams = f"{name}_lang_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
-                       f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
-                       f"fasttext={use_fasttex}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+        #self.hparams = f"{name}_lang_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
+        #               f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
+        #               f"fasttext={use_fasttex}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+        self.hparams = "title_emb_use_bow=False_vocab=-1_title_seq_LSTM_1_layers_cell_lr_0.001_use_emb=True_emb_dim=300_fasttext=True_freeze_emb=False_hdim=250_dropout=0.5_data_size=96321"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
 
         self.build_model()
@@ -496,3 +497,28 @@ class Model:
             return True
         else:
             return False
+
+    def tSNE(self, dataset, name):
+
+        gpu_config = tf.ConfigProto(log_device_placement=False)
+        gpu_config.gpu_options.allow_growth = True
+
+        with tf.Session(config=gpu_config) as sess:
+
+            sess.run(tf.global_variables_initializer())
+            if self.load(sess, self.checkpoint_dir):
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
+                return
+
+            tvars = tf.trainable_variables()
+
+            for v in tvars:
+                print(v.name)
+
+            #graph = tf.get_default_graph()
+
+            #job_emb = [graph.get_tensor_by_name(v.name).eval() for v in tvars if v.name == "title_embedding:0"][0]
+
+            #np.save(f"/data/rali7/Tmp/solimanz/data/embs/{dataset}/{name}_emb.npy", job_emb)

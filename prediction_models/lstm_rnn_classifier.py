@@ -454,3 +454,27 @@ class Model:
             return True
         else:
             return False
+
+    def tSNE(self, dataset, name):
+
+        gpu_config = tf.ConfigProto(log_device_placement=False)
+        gpu_config.gpu_options.allow_growth = True
+
+        with tf.Session(config=gpu_config) as sess:
+
+            sess.run(tf.global_variables_initializer())
+            if self.load(sess, self.checkpoint_dir):
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
+                return
+
+            tvars = tf.trainable_variables()
+
+            graph = tf.get_default_graph()
+
+            job_emb = [graph.get_tensor_by_name(v.name).eval() for v in tvars if v.name == "title_embeddings:0"][0]
+
+            np.save(f"/data/rali7/Tmp/solimanz/data/embs/{dataset}/{name}_emb.npy", job_emb)
+
+

@@ -17,7 +17,7 @@ if __name__ == '__main__':
                         choices=['jobid', 'bow', 'fasttext', 'emb'])
     parser.add_argument('-m', '--model', required=True, choices=['mlp', 'simple_rnn'])
     parser.add_argument('-t', '--task', required=True,
-                        choices=['train', 'test'])
+                        choices=['train', 'test', 'tsne'])
 
     args = parser.parse_args()
     path = f"/data/rali7/Tmp/solimanz/data/datasets/{args.dataset}"
@@ -172,3 +172,6 @@ if __name__ == '__main__':
         model.train()
     elif model and args.task =='test':
         model.test()
+    elif model and args.task =='tsne':
+        model.tSNE(args.dataset, args.representation)
+
