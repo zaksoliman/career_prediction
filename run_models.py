@@ -28,117 +28,80 @@ if __name__ == '__main__':
     else:
         model_name = args.representation
 
+    config = {
+        "train_targets": None,
+        "test_targets": None,
+        "use_dropout": True,
+        "num_layers": 1,
+        "keep_prob": 0.5,
+        "hidden_dim": 50,
+        "use_attention": False,
+        "attention_dim": 100,
+        "use_embedding": True,
+        "embedding_dim": 100,
+        "use_fasttext": False,
+        "freeze_emb": False,
+        "max_grad_norm": 5,
+        "rnn_cell_type": 'LSTM',
+        "use_bow": False,
+        "vocab_size": -1,
+        "learning_rate": 0.001,
+        "batch_size": 200,
+        "n_epochs": 1000,
+        "log_interval": 100,
+        "store_model": True,
+        "restore": True,
+        "store_dir": "/data/rali7/Tmp/solimanz/data/models/",
+        "log_dir": ".log/",
+        "name": model_name,
+        "emb_path": ''
+    }
+
+
     if args.model == 'simple_rnn':
         if args.representation == 'jobid':
             title_to_id, train_data, test_data, max_seq_len = load_data(os.path.join(path, 'jobid', 'data.json'))
-            model = Model(
-                train_data=train_data,
-                n_titles=len(title_to_id),
-                batcher=Batcher,
-                test_data=test_data,
-                train_targets=None,
-                test_targets=None,
-                use_dropout=True,
-                num_layers=1,
-                keep_prob=0.5,
-                hidden_dim=250,
-                use_attention=False,
-                attention_dim=100,
-                use_embedding=True,
-                embedding_dim=100,
-                use_fasttex=False,
-                freeze_emb=False,
-                max_grad_norm=5,
-                rnn_cell_type='LSTM',
-                max_timesteps=max_seq_len,
-                use_bow=False,
-                vocab_size=-1,
-                learning_rate=0.001,
-                batch_size=200,
-                n_epochs=1000,
-                log_interval=100,
-                store_model=True,
-                restore=True,
-                store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                log_dir=".log/",
-                name=model_name,
-                emb_path=''
-            )
+
+            config["train_data"] = train_data
+            config["n_titles"] = len(title_to_id)
+            config["test_data"] = test_data
+            config["batcher"] = Batcher
+            config["max_timesteps"] = max_seq_len
+
+            model = Model(**config)
+
         elif args.representation == 'bow':
-            #title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, vocab_size
             print("Loading bow data...")
             title_to_id, train_data, train_targets, test_data, test_targets, max_seq_len, vocab_size = load_data(
                 os.path.join(path, args.representation, 'data.json'),
                 bow=True)
-            model = Model(
-                train_data=train_data,
-                n_titles=len(title_to_id),
-                batcher=BOW_Batcher,
-                test_data=test_data,
-                train_targets=train_targets,
-                test_targets=test_targets,
-                use_dropout=True,
-                num_layers=1,
-                keep_prob=0.5,
-                hidden_dim=250,
-                use_attention=False,
-                attention_dim=100,
-                use_embedding=True,
-                embedding_dim=100,
-                use_fasttex=False,
-                freeze_emb=False,
-                max_grad_norm=5,
-                rnn_cell_type='LSTM',
-                max_timesteps=max_seq_len,
-                use_bow=True,
-                vocab_size=vocab_size,
-                learning_rate=0.001,
-                batch_size=200,
-                n_epochs=1000,
-                log_interval=100,
-                store_model=True,
-                restore=True,
-                store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                log_dir=".log/",
-                name=model_name,
-                emb_path=''
-            )
+
+            config["train_data"] = train_data
+            config["n_titles"] = len(title_to_id)
+            config["test_data"] = test_data
+            config["batcher"] = BOW_Batcher
+            config["max_timesteps"] = max_seq_len
+            config["train_targets"] = train_targets
+            config["test_targets"] = test_targets
+            config["vocab_size"] = vocab_size
+            config["use_bow"] = True
+
+            model = Model(**config)
         elif args.representation == 'fasttext':
             emb_path = os.path.join(path, args.representation, 'embeddings.npy')
             title_to_id, train_data, test_data, max_seq_len = load_data(os.path.join(path, 'jobid', 'data.json'))
-            model = Model(
-                train_data=train_data,
-                n_titles=len(title_to_id),
-                batcher=Batcher,
-                test_data=test_data,
-                train_targets=None,
-                test_targets=None,
-                use_dropout=True,
-                num_layers=1,
-                keep_prob=0.5,
-                hidden_dim=250,
-                use_attention=False,
-                attention_dim=100,
-                use_embedding=True,
-                embedding_dim=300,
-                use_fasttex=True,
-                freeze_emb=False,
-                max_grad_norm=5,
-                rnn_cell_type='LSTM',
-                max_timesteps=max_seq_len,
-                use_bow=False,
-                vocab_size=-1,
-                learning_rate=0.001,
-                batch_size=200,
-                n_epochs=1000,
-                log_interval=100,
-                store_model=True,
-                restore=True,
-                store_dir="/data/rali7/Tmp/solimanz/data/models/",
-                log_dir=".log/",
-                name=model_name,
-                emb_path=emb_path
-            )
+
+            config["train_data"] = train_data
+            config["n_titles"] = len(title_to_id)
+            config["test_data"] = test_data
+            config["batcher"] = Batcher
+            config["max_timesteps"] = max_seq_len
+            config["emb_path"] = emb_path
+            config["use_fasttext"] = True
+            config["embedding_dim"] = 300
+
+            model = Model(**config)
+
     elif args.model == 'mlp':
 
         data_path = f"/data/rali7/Tmp/solimanz/data/datasets/feed_forward/{args.dataset}/{args.representation}"

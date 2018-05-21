@@ -433,9 +433,9 @@ class Model:
                                 })
 
                 np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
-                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
+                #np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
                 np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
-                np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
+                #np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):

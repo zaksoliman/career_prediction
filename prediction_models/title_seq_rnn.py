@@ -13,7 +13,7 @@ class Model:
 
     def __init__(self, train_data, n_titles, batcher, test_data=None, train_targets=None, test_targets=None,
                  use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False,
-                 attention_dim=100, use_embedding=True, embedding_dim=100, use_fasttex=False, freeze_emb=False,
+                 attention_dim=100, use_embedding=True, embedding_dim=100, use_fasttext=False, freeze_emb=False,
                  max_grad_norm=5, rnn_cell_type='LSTM', max_timesteps=31, use_bow=False, vocab_size=-1,
                  learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, ckpt_dir=None,
                  restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log/", name='', emb_path=''):
@@ -30,7 +30,7 @@ class Model:
         self.n_titles = n_titles
         self.n_epochs = n_epochs
         self.use_embedding= use_embedding
-        self.use_fasttext = use_fasttex
+        self.use_fasttext = use_fasttext
         self.freeze_emb = freeze_emb
         self.rnn_cell_type = rnn_cell_type
         self.emb_dim = embedding_dim
@@ -50,8 +50,9 @@ class Model:
         self.vocab_size = vocab_size
         self.name = name
         self.hparams = f"{name}_title_seq_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
-                       f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
-                       f"fasttext={use_fasttex}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+                       f"layers_cell_lr_{self.lr}_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
+                       f"fasttext={use_fasttext}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+        print(self.hparams)
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
 
         self.build_model()
@@ -143,7 +144,7 @@ class Model:
 
         cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
-        self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
+        self.output, self.states = tf.nn.dynamic_rnn(cell,
                                                     self.title_emb_input,
                                                     sequence_length=self.seq_lengths,
                                                     dtype=tf.float32,
@@ -427,10 +428,15 @@ class Model:
 
         base_path = "/data/rali7/Tmp/solimanz/data/model_predictions"
 
-        if self.n_titles == 550:
-            path = os.path.join(base_path, 'top550', self.name)
-        elif self.n_titles == 7000:
-            path = os.path.join(base_path, 'reduced7000', self.name)
+        if self.name == 'title_emb':
+            folder = 'fasttext'
+        else:
+            folder = self.name
+
+        if self.n_titles == 551:
+            path = os.path.join(base_path, 'top550', folder)
+        elif self.n_titles == 7003:
+            path = os.path.join(base_path, 'reduced7k', folder)
         else:
             print("Number of job title labels doesn't match 550 or 7000")
             return
@@ -466,7 +472,7 @@ class Model:
                 with tf.device("/cpu:0"):
                     test_title_seq, test_seq_lengths, test_target = test_batcher.next()
 
-                pred = sess.run([self.prediction],
+                preds, outputs = sess.run([self.prediction, self.output],
                                 {
                                     self.titles_input_data: test_title_seq,
                                     self.seq_lengths: test_seq_lengths,
@@ -474,10 +480,11 @@ class Model:
                                     self.dropout: 1.0
                                 })
 
-                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred)
+                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), preds)
+                np.save(os.path.join(path, 'hidden', f'hidden_batch_{tb}.npy'), outputs)
                 np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
                 np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
-                np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
+                #np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
