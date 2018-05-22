@@ -165,7 +165,7 @@ class Model:
             get_cell = tf.nn.rnn_cell.GRUCell
 
         cell = get_cell(self.hidden_dim)
-        print(cell.cell_state)
+        print(cell.state_size)
         if self.use_dropout:
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.dropout)
 
