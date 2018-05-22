@@ -150,9 +150,9 @@ class Model:
                                  padding="valid",
                                  activation=tf.nn.relu)
         print(conv1.get_shape())
-        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[29, 1], strides=29)
+        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 1], strides=1)
         print(pool1.get_shape())
-        pool1_flat = tf.reshape(pool1, [-1, 7 * 7])
+        pool1_flat = tf.reshape(pool1, [-1, 202])
         c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
         m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
 
@@ -165,7 +165,7 @@ class Model:
             get_cell = tf.nn.rnn_cell.GRUCell
 
         cell = get_cell(self.hidden_dim)
-
+        print(cell.cell_state)
         if self.use_dropout:
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=self.dropout)
 
