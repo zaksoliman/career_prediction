@@ -195,6 +195,7 @@ class SkillBatcher:
         self.step_num = step_num
         self.n_classes = n_classes
         self.n_skills = n_skills
+        self.max_skills = max_skills
         self.jobs_lookup = np.eye(n_classes, dtype=np.int16)
         self.skills_lookup = np.eye(n_skills, dtype=np.int16)
 
