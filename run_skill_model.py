@@ -1,4 +1,4 @@
-from helpers.loader import load_data
+from helpers.loader import load_dat_skills as load_data
 import argparse
 from prediction_models.cnn_lstm_classif import Model
 from helpers.batcher import SkillBatcher
@@ -46,9 +46,9 @@ if __name__ == '__main__':
         "emb_path": ''
     }
 
-    emb_path = os.path.join(path, args.representation, 'embeddings.npy')
+    emb_path = os.path.join(path, 'fasttext', 'embeddings.npy')
     title_id, train, test, max_seq_len, token_id, max_skills, skill_embs_path = load_data(os.path.join(path,
-                                                                                                       'skills_emb',
+                                                                                                       'skill_embs',
                                                                                                        'data.json'))
 
     config["train_data"] = train
