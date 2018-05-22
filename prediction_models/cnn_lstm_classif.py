@@ -108,7 +108,6 @@ class Model:
         # Do embeddings
         with tf.device("/cpu:0"):
             skill_embs = np.load(self.skill_emb_path)
-            self.skill_emb_dim = skill_embs.shape[1]
             skill_embedding = tf.get_variable(name="skill_embedding",
                                               shape=[skill_embs.shape[0], skill_embs.shape[1]],
                                               dtype=tf.float32,
@@ -142,15 +141,15 @@ class Model:
 
 
         # CNN Encoder
-        skills_shape = tf.shape(self.skill_emb_input)
-        print(tf.shape(self.skill_emb_input))
+        skills_shape = self.skill_emb_input.get_shape()
+        print(self.skill_emb_input.get_shape())
         skill_embs = tf.reshape(self.skill_emb_input, [-1, skills_shape[1], skills_shape[2], 1])
         conv1 = tf.layers.conv2d(skill_embs,
                                  filters=10,
                                  kernel_size=[5, skills_shape[2]],
                                  padding="valid",
                                  activation=tf.nn.relu)
-        print(tf.shape(conv1))
+        print(conv1.get_shape())
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
