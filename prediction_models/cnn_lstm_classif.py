@@ -7,8 +7,6 @@ import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
-tf.enable_eager_execution()
-
 
 class Model:
 
@@ -154,8 +152,7 @@ class Model:
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 1], strides=1)
         print(pool1.get_shape())
         pool1_flat = tf.reshape(pool1, [-1, 202])
-        c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
-        m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
+        dense = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim * 2, activation=tf.nn.relu)
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
@@ -172,7 +169,7 @@ class Model:
 
         self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
                                                           self.title_emb_input,
-                                                          initial_state=tf.tuple(c_state, m_state),
+                                                          initial_state=tf.split(dense, 2, 1),
                                                           sequence_length=self.seq_lengths,
                                                           dtype=tf.float32,
                                                           parallel_iterations=1024)
