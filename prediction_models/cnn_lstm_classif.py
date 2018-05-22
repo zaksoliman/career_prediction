@@ -153,8 +153,8 @@ class Model:
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 1], strides=1)
         print(pool1.get_shape())
         pool1_flat = tf.reshape(pool1, [-1, 202])
-        c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu, dtype=tf.float32)
-        m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu, dtype=tf.float32)
+        c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
+        m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
