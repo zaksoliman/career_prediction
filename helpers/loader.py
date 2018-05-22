@@ -61,3 +61,20 @@ def load_data(data_path, bow=False, multi=False):
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len
+
+def load_dat_skills(data_path):
+
+    with open(data_path, 'r') as data_file:
+        data =  json.load(data_file)
+
+    #'title_to_id', 'train_data', 'test_data', 'maximum_seq_len', 'skill_token_id', 'max_skills_num', 'skills_embs'
+
+    title_id = data["title_to_id"]
+    train = data["train_data"]
+    test = data["test_data"]
+    max_seq_len = data["maximum_seq_len"]
+    token_id = data["skill_token_id"]
+    max_skills = data["max_skills_num"]
+    skill_embs_path = data["skills_embs"]
+
+    return title_id, train, test, max_seq_len, token_id, max_skills, skill_embs_path

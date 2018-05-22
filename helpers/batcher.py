@@ -182,10 +182,49 @@ class SequenceBatcher:
 
         return input_seqs, seqs_length, targets
 
-class FeedForwardBatcher:
+class SkillBatcher:
 
-    def __init__(self):
-        pass
+    def __init__(self, batch_size, step_num, max_skills, data, n_classes, n_skills, shuffle_seed=123):
+
+        np.random.seed(shuffle_seed)
+        self.data = data
+        self.num_of_samples = len(self.data)
+        self.batch_size = batch_size
+        self.batch_num = 0
+        self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
+        self.step_num = step_num
+        self.n_classes = n_classes
+        self.n_skills = n_skills
+        self.jobs_lookup = np.eye(n_classes, dtype=np.int16)
+        self.skills_lookup = np.eye(n_skills, dtype=np.int16)
 
     def next(self):
-        pass
+        batch_size = self.batch_size
+        if self.batch_num == self.max_batch_num - 1:  # i.e. at the last batch
+            # We put the rest of the data in the last batch
+            batch_size = self.num_of_samples - (self.batch_size * (self.max_batch_num - 1))
+
+        input_seqs = np.zeros((batch_size, self.step_num), dtype=np.int32)
+        targets = np.zeros((batch_size, self.n_classes), dtype=np.int32)
+        skills = np.zeros((batch_size, self.max_skills), dtype=np.int32)
+        seqs_length = np.zeros(batch_size, dtype=np.int32)
+
+        for i in range(batch_size):
+            example = self.data[self.batch_num * self.batch_size + i][1]
+            skill_set = self.data[self.batch_num * self.batch_size + i][2]
+            sequence = example[:-1]
+            target_label = example[-1]
+
+            skills[i, :len(skill_set)] = skill_set
+            input_seqs[i, :len(sequence)] = sequence
+            seqs_length[i] = len(sequence)
+            targets[i, :] = self.jobs_lookup[target_label]
+
+        if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
+            self.batch_num = 0
+            if self.max_batch_num != 0:
+                np.random.shuffle(self.data)
+        else:
+            self.batch_num += 1
+
+        return input_seqs, seqs_length, targets, skills
