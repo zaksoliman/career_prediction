@@ -171,7 +171,7 @@ class Model:
 
         self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
                                                           self.title_emb_input,
-                                                          initial_state=[c_state, m_state],
+                                                          initial_state=(c_state, m_state),
                                                           sequence_length=self.seq_lengths,
                                                           dtype=tf.float32,
                                                           parallel_iterations=1024)
