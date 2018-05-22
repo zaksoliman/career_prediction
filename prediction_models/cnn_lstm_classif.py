@@ -145,11 +145,16 @@ class Model:
         print(self.skill_emb_input.get_shape())
         skill_embs = tf.reshape(self.skill_emb_input, [-1, skills_shape[1], skills_shape[2], 1])
         conv1 = tf.layers.conv2d(skill_embs,
-                                 filters=10,
+                                 filters=1,
                                  kernel_size=[5, skills_shape[2]],
                                  padding="valid",
                                  activation=tf.nn.relu)
         print(conv1.get_shape())
+        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[29, 1], strides=29)
+        print(pool1.get_shape())
+        pool1_flat = tf.reshape(pool1, [-1, 7 * 7])
+        c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
+        m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
 
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
@@ -166,7 +171,9 @@ class Model:
 
         self.output, self.prev_states = tf.nn.dynamic_rnn(cell,
                                                           self.title_emb_input,
+                                                          initial_state=[c_state, m_state],
                                                           sequence_length=self.seq_lengths,
+                                                          dtype=tf.float32,
                                                           parallel_iterations=1024)
 
         batch_range = tf.range(tf.shape(self.output)[0])
