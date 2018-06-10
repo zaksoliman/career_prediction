@@ -57,7 +57,11 @@ def load_data(data_path, bow=False, multi=False):
         test_inputs = data["test_data"]
         test_targets = data["test_targets"]
         n_labels = data['n_labels']
-        return title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, n_labels
+
+        if 'max_skills_num' in data:
+            return title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, n_labels, len(data['skill_token_id']), data['max_skills_num'], data['skills_embs']
+        else:
+            return title_to_id, train_inputs, train_targets, test_inputs, test_targets, max_seq_len, n_labels
     else:
         train_data, test_data = data['train_data'], data['test_data']
         return title_to_id, train_data, test_data, max_seq_len

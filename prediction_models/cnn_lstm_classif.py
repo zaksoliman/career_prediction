@@ -8,10 +8,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+def prod(a):
+    p = 1
+    for e in a:
+        p *= e
+    return p
+
 class Model:
 
     def __init__(self, train_data, n_titles, n_skills, max_skills, batcher, test_data=None, train_targets=None, test_targets=None,
-                 use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False,
+                 use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False, n_filters=2, kernel_sizes=[2,3,4,5],
                  attention_dim=100, use_embedding=True, embedding_dim=100, use_fasttext=True, freeze_emb=False,
                  max_grad_norm=5, rnn_cell_type='LSTM', max_timesteps=31, use_bow=False, vocab_size=-1,
                  learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, ckpt_dir=None,
@@ -51,9 +57,11 @@ class Model:
         self.n_skills = n_skills
         self.max_skills = max_skills
         self.vocab_size = vocab_size
+        self.n_filters = n_filters
+        self.kernel_sizes = kernel_sizes
         self.name = name
-        self.hparams = f"{name}_classif_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
-                       f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
+        self.hparams = f"{name}_v2_classif_vocab={vocab_size}_{num_layers}_" \
+                       f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_n_filters={n_filters}_kernels={len(kernel_sizes)}" \
                        f"fasttext={use_fasttext}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
 
@@ -63,6 +71,7 @@ class Model:
         self._predict()
         self._loss()
         self._accuracy()
+        self._accuracy_last()
         self._optimize()
         self._top_2_metric()
         self._top_3_metric()
@@ -70,6 +79,7 @@ class Model:
         self._top_5_metric()
         self.train_summ_op = tf.summary.merge([
             self.train_loss_summ,
+            #self.train_hinge_loss_summ,
             self.train_last_acc_summ,
             self.train_top_2_summ,
             self.train_top_3_summ,
@@ -77,6 +87,7 @@ class Model:
             self.train_top_5_summ])
         self.test_summ_op = tf.summary.merge([
             self.test_loss_summ,
+            #self.test_hinge_loss_summ,
             self.test_last_acc_summ,
             self.test_top_2_summ,
             self.test_top_3_summ,
@@ -94,15 +105,12 @@ class Model:
         # Keep probability for the dropout
         self.dropout = tf.placeholder(tf.float32, name="dropout_prob")
         # Our list of job title sequences (padded to max_timesteps)
-        if self.use_bow:
-            self.titles_input_data = tf.placeholder(tf.float32, [None, self.max_timesteps, self.vocab_size], name="titles_input_data")
-        else:
-            self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps], name="titles_input_data")
+        self.titles_input_data = tf.placeholder(tf.int32, [None, self.max_timesteps], name="titles_input_data")
 
         self.skills_input = tf.placeholder(tf.int32, [None, self.max_skills], name="skills_input_data")
         # matrix that will hold the length of out sequences
         self.seq_lengths = tf.placeholder(tf.int32, [None], name="seq_lengths")
-        self.targets = tf.placeholder(tf.int32, [None, self.n_titles], name="labels")
+        self.targets = tf.placeholder(tf.int32, [None, self.max_timesteps, self.n_titles], name="labels")
 
         # Do embeddings
         with tf.device("/cpu:0"):
@@ -131,31 +139,55 @@ class Model:
                 title_embedding = tf.Variable(tf.eye(self.n_titles), trainable=False, name="title_one_hot_encoding")
 
             # tile_emb_input has shape batch_size x times steps x emb_dim
-            if self.use_bow:
-                self.title_emb_input = self.titles_input_data
-            else:
-                self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data, name="encoded_in_seq")
+
+            self.title_emb_input = tf.nn.embedding_lookup(title_embedding, self.titles_input_data, name="encoded_in_seq")
 
             self.skill_emb_input = tf.nn.embedding_lookup(skill_embedding, self.skills_input, name="skills_lookup")
 
-
-        # CNN Encoder
+        ##################
+        #   CNN Encoder  #
+        ##################
         skills_shape = self.skill_emb_input.get_shape()
-        print(self.skill_emb_input.get_shape())
+        print(f"Shape of skill embs: {self.skill_emb_input.get_shape()}")
         skill_embs = tf.reshape(self.skill_emb_input, [-1, skills_shape[1], skills_shape[2], 1])
-        conv1 = tf.layers.conv2d(skill_embs,
-                                 filters=1,
-                                 kernel_size=[5, skills_shape[2]],
-                                 padding="valid",
-                                 activation=tf.nn.relu)
-        print(conv1.get_shape())
-        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 1], strides=1)
-        print(pool1.get_shape())
-        pool1_flat = tf.reshape(pool1, [-1, 202])
-        c_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
-        m_state = tf.layers.dense(inputs=pool1_flat, units=self.hidden_dim, activation=tf.nn.relu)
+        print(f"Shape of skill embs after reshape: {skill_embs.get_shape()}")
+
+        kernel_sizes = self.kernel_sizes
+        conv_layers = []
+        pool_layers = []
+
+        for i, size in enumerate(kernel_sizes):
+            with tf.name_scope(f"conv-maxpool-{size}"):
+                conv = tf.layers.conv2d(skill_embs,
+                                        filters=self.n_filters,
+                                        kernel_size=[size, skills_shape[2]],
+                                        padding="valid",
+                                        activation=tf.nn.relu)
+                conv_shape = conv.get_shape().as_list()
+                print(f"Shape of Conv Layer: {conv_shape}")
+                pool = tf.layers.max_pooling2d(inputs=conv, pool_size=[conv_shape[1], 1], strides=1, padding='same')
+                print(f"Shape of pool Layer: {pool.get_shape()}")
+                pool_layers.append(pool)
+                conv_layers.append(conv)
+
+        pool_concat = tf.concat(pool_layers, axis=1)
+        concat_shape = pool_concat.get_shape().as_list()
+        print(f"Shape after concatination: {concat_shape}")
+
+        pool_flat = tf.reshape(pool_concat, [-1, prod(concat_shape[1:])])
+        print(f"Shape of flat pool: {pool_flat.get_shape()}")
+
+        with tf.name_scope("pooling-dropout"):
+            skill_context = tf.nn.dropout(pool_flat, self.keep_prob)
+
+        c_state = tf.layers.dense(inputs=skill_context, units=self.hidden_dim, activation=tf.nn.relu)
+        m_state = tf.layers.dense(inputs=skill_context, units=self.hidden_dim, activation=tf.nn.relu)
         init_states = tf.contrib.rnn.LSTMStateTuple(c_state, m_state)
 
+
+        #########
+        #  RNN  #
+        #########
         # Decide on out RNN cell type
         if self.rnn_cell_type == 'RNN':
             get_cell = tf.nn.rnn_cell.BasicRNNCell
@@ -179,24 +211,30 @@ class Model:
         batch_range = tf.range(tf.shape(self.output)[0])
         indices = tf.stack([batch_range, self.seq_lengths - 1], axis=1)
         # Both are shape (batch size, hidden_dim)
-        self.last_target = self.targets
-        self.last_output = tf.gather_nd(self.output, indices)
+        self.last_target = tf.gather_nd(self.targets, indices)
+        #self.last_output = tf.gather_nd(self.output, indices)
 
-        self.logit = tf.layers.dense(self.last_output,
+        output = tf.reshape(self.output, [-1, self.hidden_dim])
+
+        self.logit = tf.layers.dense(output,
                                      self.n_titles,
                                      activation=None,
                                      kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                      bias_initializer=tf.contrib.layers.xavier_initializer(),
                                      name="fc_logit")
 
+        self.logit = tf.reshape(self.logit, [-1, self.max_timesteps, self.n_titles])
         self.prediction = tf.nn.softmax(self.logit, name="prediction")
+        self.last_pred = tf.gather_nd(self.logit, indices)
 
         return self.prediction
 
     def _loss(self):
         with tf.name_scope("xent"):
             cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit,
-                                                                           labels=tf.argmax(self.last_target, 1))
+                                                                           labels=tf.argmax(self.targets, 2))
+            mask = tf.sequence_mask(self.seq_lengths)
+            cross_entropy = tf.boolean_mask(cross_entropy, mask)
             self.loss = tf.reduce_mean(cross_entropy)
 
             self.train_loss_summ = tf.summary.scalar("train_xent", self.loss)
@@ -216,24 +254,44 @@ class Model:
     def _accuracy(self):
         with tf.name_scope("accuracy"):
             correct = tf.equal(
-                tf.argmax(self.prediction, axis=1, output_type=tf.int32),
+                tf.argmax(self.targets, axis=2, output_type=tf.int32),
+                tf.argmax(self.prediction, axis=2, output_type=tf.int32))
+            correct = tf.cast(correct, tf.float32)
+            mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+            correct *= tf.cast(mask, tf.float32)
+            # Average over actual sequence lengths.
+            correct = tf.reduce_sum(correct, reduction_indices=1)
+            correct /= tf.cast(self.seq_lengths, tf.float32)
+            self.accuracy =  tf.reduce_mean(correct)
+            self.train_acc_summ = tf.summary.scalar("training_accuracy", self.accuracy)
+            self.test_acc_summ = tf.summary.scalar("test_accuracy", self.accuracy)
+            return self.accuracy
+
+    def _accuracy_last(self):
+        with tf.name_scope("accuracy_last"):
+            correct = tf.equal(
+                tf.argmax(self.last_pred, axis=1, output_type=tf.int32),
                 tf.argmax(self.last_target, axis=1, output_type=tf.int32))
             correct = tf.cast(correct, tf.float32)
-            self.accuracy =  tf.reduce_mean(correct)
-            self.train_last_acc_summ = tf.summary.scalar("train_last_acc", self.accuracy)
-            self.test_last_acc_summ = tf.summary.scalar("test_last_accuracy", self.accuracy)
+            self.last_accuracy =  tf.reduce_mean(correct)
+            self.train_last_acc_summ = tf.summary.scalar("train_last_acc", self.last_accuracy)
+            self.test_last_acc_summ = tf.summary.scalar("test_last_accuracy", self.last_accuracy)
             return self.accuracy
 
     def _top_2_metric(self):
         with tf.name_scope("top_k_accs"):
             with tf.name_scope("top_2"):
                 values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
-                labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                labels = tf.reshape(labels, [-1, 1])
-                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
 
-                self.top_2_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
-
+                self.top_2_acc = tf.reduce_mean(correct)
                 self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
                 self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
 
@@ -244,11 +302,16 @@ class Model:
         with tf.name_scope("top_k_accs"):
             with tf.name_scope("top_3"):
                 values, indices = tf.nn.top_k(self.prediction, k=3, name='top_3_op')
-                labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                labels = tf.reshape(labels, [-1, 1])
-                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
 
-                self.top_3_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+                self.top_3_acc = tf.reduce_mean(correct)
                 self.train_top_3_summ = tf.summary.scalar("training_top_3_accuracy", self.top_3_acc)
                 self.test_top_3_summ = tf.summary.scalar("test_top_3_accuracy", self.top_3_acc)
 
@@ -259,11 +322,16 @@ class Model:
         with tf.name_scope("top_k_accs"):
             with tf.name_scope("top_4"):
                 values, indices = tf.nn.top_k(self.prediction, k=4, name='top_4_op')
-                labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                labels = tf.reshape(labels, [-1, 1])
-                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
 
-                self.top_4_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+                self.top_4_acc = tf.reduce_mean(correct)
                 self.train_top_4_summ = tf.summary.scalar("training_top_4_accuracy", self.top_4_acc)
                 self.test_top_4_summ = tf.summary.scalar("test_top_4_accuracy", self.top_4_acc)
 
@@ -274,15 +342,113 @@ class Model:
         with tf.name_scope("top_k_accs"):
             with tf.name_scope("top_5"):
                 values, indices = tf.nn.top_k(self.prediction, k=5, name='top_5_op')
-                labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
-                labels = tf.reshape(labels, [-1, 1])
-                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+                labels = tf.argmax(self.targets, axis=2, output_type=tf.int32)
+                labels = tf.reshape(labels, [-1, self.max_timesteps, 1])
+                correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=2)
+                mask = tf.sign(tf.reduce_max(tf.abs(self.targets), reduction_indices=2))
+                correct *= mask
+                # Average over actual sequence lengths.
+                correct = tf.reduce_sum(correct, reduction_indices=1)
+                correct /= self.seq_lengths
 
-                self.top_5_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+                self.top_5_acc = tf.reduce_mean(correct)
                 self.train_top_5_summ =tf.summary.scalar("training_top_5_accuracy", self.top_5_acc)
                 self.test_top_5_summ = tf.summary.scalar("test_top_5_accuracy", self.top_5_acc)
 
                 return self.top_5_acc
+
+
+    # def _loss(self):
+    #     with tf.name_scope("xent"):
+    #         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logit,
+    #                                                                        labels=tf.argmax(self.last_target, 1))
+    #         self.loss = tf.reduce_mean(cross_entropy)
+    #
+    #         self.train_loss_summ = tf.summary.scalar("train_xent", self.loss)
+    #         self.test_loss_summ = tf.summary.scalar("test_xent", self.loss)
+    #
+    #     return self.loss
+    #
+    # def _optimize(self):
+    #     with tf.name_scope("train"):
+    #         #self.optimize = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+    #         tvars = tf.trainable_variables()
+    #         optimizer = tf.train.AdamOptimizer(self.lr)
+    #         grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), self.max_grad_norm)
+    #         self.optimize = optimizer.apply_gradients(zip(grads, tvars))
+    #
+    #         return self.optimize
+    #
+    # def _accuracy(self):
+    #     with tf.name_scope("accuracy"):
+    #         correct = tf.equal(
+    #             tf.argmax(self.prediction, axis=1, output_type=tf.int32),
+    #             tf.argmax(self.last_target, axis=1, output_type=tf.int32))
+    #         correct = tf.cast(correct, tf.float32)
+    #         self.accuracy =  tf.reduce_mean(correct)
+    #         self.train_last_acc_summ = tf.summary.scalar("train_last_acc", self.accuracy)
+    #         self.test_last_acc_summ = tf.summary.scalar("test_last_accuracy", self.accuracy)
+    #         return self.accuracy
+    #
+    # def _top_2_metric(self):
+    #     with tf.name_scope("top_k_accs"):
+    #         with tf.name_scope("top_2"):
+    #             values, indices = tf.nn.top_k(self.prediction, k=2, name='top_2_op')
+    #             labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
+    #             labels = tf.reshape(labels, [-1, 1])
+    #             correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+    #
+    #             self.top_2_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+    #
+    #             self.train_top_2_summ = tf.summary.scalar("training_top_2_accuracy", self.top_2_acc)
+    #             self.test_top_2_summ = tf.summary.scalar("test_top_2_accuracy", self.top_2_acc)
+    #
+    #             return self.top_2_acc
+    #
+    # def _top_3_metric(self):
+    #
+    #     with tf.name_scope("top_k_accs"):
+    #         with tf.name_scope("top_3"):
+    #             values, indices = tf.nn.top_k(self.prediction, k=3, name='top_3_op')
+    #             labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
+    #             labels = tf.reshape(labels, [-1, 1])
+    #             correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+    #
+    #             self.top_3_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+    #             self.train_top_3_summ = tf.summary.scalar("training_top_3_accuracy", self.top_3_acc)
+    #             self.test_top_3_summ = tf.summary.scalar("test_top_3_accuracy", self.top_3_acc)
+    #
+    #             return self.top_3_acc
+    #
+    # def _top_4_metric(self):
+    #
+    #     with tf.name_scope("top_k_accs"):
+    #         with tf.name_scope("top_4"):
+    #             values, indices = tf.nn.top_k(self.prediction, k=4, name='top_4_op')
+    #             labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
+    #             labels = tf.reshape(labels, [-1, 1])
+    #             correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+    #
+    #             self.top_4_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+    #             self.train_top_4_summ = tf.summary.scalar("training_top_4_accuracy", self.top_4_acc)
+    #             self.test_top_4_summ = tf.summary.scalar("test_top_4_accuracy", self.top_4_acc)
+    #
+    #             return self.top_4_acc
+    #
+    # def _top_5_metric(self):
+    #
+    #     with tf.name_scope("top_k_accs"):
+    #         with tf.name_scope("top_5"):
+    #             values, indices = tf.nn.top_k(self.prediction, k=5, name='top_5_op')
+    #             labels = tf.argmax(self.last_target, axis=1, output_type=tf.int32)
+    #             labels = tf.reshape(labels, [-1, 1])
+    #             correct = tf.reduce_max(tf.cast(tf.equal(indices, labels), dtype=tf.int32), reduction_indices=1)
+    #
+    #             self.top_5_acc = tf.reduce_mean(tf.cast(correct, dtype=tf.float32))
+    #             self.train_top_5_summ =tf.summary.scalar("training_top_5_accuracy", self.top_5_acc)
+    #             self.test_top_5_summ = tf.summary.scalar("test_top_5_accuracy", self.top_5_acc)
+    #
+    #             return self.top_5_acc
 
     def train(self):
 
@@ -400,7 +566,6 @@ class Model:
                 print(f"Top 3 accuracy on test: {sum(avg_top_3)/len(avg_top_3)*100:.2f}")
                 print(f"Top 4 accuracy on test: {sum(avg_top_4)/len(avg_top_4)*100:.2f}")
                 print(f"Top 5 accuracy on test: {sum(avg_top_5)/len(avg_top_5)*100:.2f}")
-                print(f"Loss on test: {test_loss:.2f}")
                 if self.store and e % 5 == 0:
                     save_path = self.save(sess, self.checkpoint_dir, e)
                     print("model saved in file: %s" % save_path)

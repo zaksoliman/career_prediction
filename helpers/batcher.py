@@ -142,6 +142,60 @@ class MultiLabelBatcher:
 
         return input_seqs, seqs_length, targets
 
+class MultiLabelSkillBatcher:
+
+    def __init__(self, batch_size, step_num, input_data, target_data, n_classes, n_skills, max_skills, skill_data, shuffle_seed=123):
+
+        np.random.seed(shuffle_seed)
+        print("Building batcher")
+        self.input_data = input_data
+        self.target_data = target_data
+        self.skill_data = skill_data
+        if len(self.input_data) != len(self.target_data):
+            print("Data not same size!!!")
+        self.num_of_samples = len(self.input_data)
+        self.batch_size = batch_size
+        self.batch_num = 0
+        self.max_batch_num = int(math.ceil(self.num_of_samples / self.batch_size))
+        self.step_num = step_num
+        self.n_classes = n_classes
+        self.n_skills = n_skills
+        self.max_skills = max_skills
+        self.skills_lookup = np.eye(n_skills, dtype=np.int16)
+
+
+    def next(self):
+        batch_size = self.batch_size
+        if self.batch_num == self.max_batch_num - 1:  # i.e. at the last batch
+            # We put the rest of the data in the last batch
+            batch_size = self.num_of_samples - (self.batch_size * (self.max_batch_num - 1))
+
+        input_seqs = np.zeros((batch_size, self.step_num), dtype=np.int32)
+        targets = np.zeros((batch_size, self.n_classes), dtype=np.int32)
+        seqs_length = np.zeros(batch_size, dtype=np.int32)
+        skills = np.zeros((batch_size, self.max_skills), dtype=np.int32)
+
+        for i in range(batch_size):
+            input_seq = self.input_data[self.batch_num * self.batch_size + i]
+            target_labels = self.target_data[self.batch_num * self.batch_size + i]
+            skill_set = self.skill_data[self.batch_num * self.batch_size + i]
+
+            input_seqs[i, :len(input_seq)] = input_seq
+            targets[i, target_labels] = 1
+            skills[i, :len(skill_set)] = skill_set
+            seqs_length[i] = len(input_seq)
+
+        if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
+            self.batch_num = 0
+            if self.max_batch_num != 0:
+                zipped = list(zip(self.input_data, self.target_data))
+                np.random.shuffle(zipped)
+                self.input_data, self.target_data = zip(*zipped)
+        else:
+            self.batch_num += 1
+
+        return input_seqs, seqs_length, targets, skills
+
 class SequenceBatcher:
     def __init__(self, batch_size, step_num, data, n_classes, shuffle_seed=123):
 
@@ -206,7 +260,7 @@ class SkillBatcher:
             batch_size = self.num_of_samples - (self.batch_size * (self.max_batch_num - 1))
 
         input_seqs = np.zeros((batch_size, self.step_num), dtype=np.int32)
-        targets = np.zeros((batch_size, self.n_classes), dtype=np.int32)
+        targets = np.zeros((batch_size, self.step_num, self.n_classes), dtype=np.int32)
         skills = np.zeros((batch_size, self.max_skills), dtype=np.int32)
         seqs_length = np.zeros(batch_size, dtype=np.int32)
 
@@ -214,12 +268,12 @@ class SkillBatcher:
             example = self.data[self.batch_num * self.batch_size + i][1]
             skill_set = self.data[self.batch_num * self.batch_size + i][2]
             sequence = example[:-1]
-            target_label = example[-1]
+            target = example[1:]
 
             skills[i, :len(skill_set)] = skill_set
             input_seqs[i, :len(sequence)] = sequence
             seqs_length[i] = len(sequence)
-            targets[i, :] = self.jobs_lookup[target_label]
+            targets[i, :len(target), :] = self.jobs_lookup[target]
 
         if self.batch_num == self.max_batch_num - 1 or self.max_batch_num == 0:
             self.batch_num = 0
