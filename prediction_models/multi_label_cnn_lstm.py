@@ -325,7 +325,7 @@ class Model:
 
     def test(self):
 
-        base_path = "/data/rali7/Tmp/solimanz/data/multilabel_model_predictions"
+        base_path = "/data/rali7/Tmp/solimanz/data/multilabel_lstm_cnn_predictions"
 
         if self.n_titles == 551:
             path = os.path.join(base_path, 'top550')
