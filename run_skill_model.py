@@ -35,7 +35,7 @@ if __name__ == '__main__':
         "use_bow": False,
         "vocab_size": -1,
         "learning_rate": 0.001,
-        "batch_size": 100,
+        "batch_size": 200,
         "n_epochs": 1000,
         "log_interval": 100,
         "n_filters": 2,

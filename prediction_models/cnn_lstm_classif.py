@@ -573,27 +573,20 @@ class Model:
     def test(self):
 
         base_path = "/data/rali7/Tmp/solimanz/data/model_predictions"
-
-        if self.name == 'title_emb':
-            folder = 'fasttext'
-        else:
-            folder = self.name
+        folder = 'fasttext'
 
         if self.n_titles == 551:
             path = os.path.join(base_path, 'top550', folder)
-        elif self.n_titles == 7003:
+        elif self.n_titles >= 7000:
             path = os.path.join(base_path, 'reduced7k', folder)
         else:
             print("Number of job title labels doesn't match 550 or 7000")
             return
 
         print("Creating batchers")
-        if self.use_bow:
-            test_batcher = self.batcher(1000, self.max_timesteps, self.test_data, self.test_targets,
-                                        self.n_titles, self.vocab_size)
-        else:
-            test_batcher = self.batcher(batch_size=1000, step_num=self.max_timesteps, data=self.test_data,
-                                        n_classes=self.n_titles)
+        test_batcher = self.batcher(batch_size=self.batch_size, step_num=self.max_timesteps,
+                                    max_skills=self.max_skills, data=self.test_data,
+                                    n_classes=self.n_titles, n_skills=self.n_skills)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto(log_device_placement=False)
@@ -611,28 +604,24 @@ class Model:
             print(f"Number of batches: {test_batcher.max_batch_num}")
             print(f"Size of dataset: {len(self.test_data)}")
             print(f"Batch Size: {self.batch_size}")
-            
-            #test_batcher.batch_num = 145
-            test_batcher.batch_num = 121
 
-            for tb in range(121, test_batcher.max_batch_num):
+            for tb in range(test_batcher.max_batch_num):
 
                 print(f"Batch #{tb}")
                 with tf.device("/cpu:0"):
-                    test_title_seq, test_seq_lengths, test_target = test_batcher.next()
+                    title_seq, seq_lengths, target, skills = test_batcher.next()
 
                 pred = sess.run([self.prediction],
                                 {
-                                    self.titles_input_data: test_title_seq,
-                                    self.seq_lengths: test_seq_lengths,
-                                    self.targets: test_target,
+                                    self.titles_input_data: title_seq,
+                                    self.seq_lengths: seq_lengths,
+                                    self.targets: target,
+                                    self.skills_input: skills,
                                     self.dropout: 1.0
                                 })
 
                 np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
-                #np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
-                np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
-                #np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
+                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), seq_lengths)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):

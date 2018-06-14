@@ -336,7 +336,8 @@ class Model:
             return
 
         test_batcher = Batcher(batch_size=self.batch_size, step_num=self.max_timesteps, input_data=self.test_inputs,
-                               target_data=self.test_targets, n_classes=self.n_labels)
+                                target_data=self.test_targets, n_classes=self.n_labels, n_skills=self.n_skills,
+                                max_skills=self.max_skills, skill_data=self.test_skills)
 
         # Assume that you have 12GB of GPU memory and want to allocate ~4GB:
         gpu_config = tf.ConfigProto()
@@ -356,23 +357,21 @@ class Model:
             print(f"Batch Size: {self.batch_size}")
 
             for tb in range(test_batcher.max_batch_num):
-
                 print(f"Batch #{tb}")
                 with tf.device("/cpu:0"):
-                    input_seqs, seqs_length, targets = test_batcher.next()
+                    test_title_seq, test_seq_lengths, test_target, skills = test_batcher.next()
 
                 pred = sess.run([self.predictions],
                                 {
-                                    self.titles_input_data: input_seqs,
-                                    self.seq_lengths: seqs_length,
-                                    self.targets: targets,
+                                    self.titles_input_data: test_title_seq,
+                                    self.seq_lengths: test_seq_lengths,
+                                    self.targets: test_target,
+                                    self.skills_input: skills,
                                     self.dropout: 1.0
                                 })
 
                 np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
-                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), seqs_length)
-                np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), targets)
-                np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), input_seqs)
+                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
