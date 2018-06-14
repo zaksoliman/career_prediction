@@ -572,7 +572,7 @@ class Model:
 
     def test(self):
 
-        base_path = "/data/rali7/Tmp/solimanz/data/model_predictions"
+        base_path = "/data/rali7/Tmp/solimanz/data/lstm_cnn_predictions"
         folder = 'fasttext'
 
         if self.n_titles == 551:
