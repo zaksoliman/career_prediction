@@ -13,7 +13,7 @@ class Model:
 
     def __init__(self, train_data, n_titles, batcher, test_data=None, train_targets=None, test_targets=None,
                  use_dropout=True, num_layers=1, keep_prob=0.5, hidden_dim=250, use_attention=False,
-                 attention_dim=100, use_embedding=True, embedding_dim=100, use_fasttex=False, freeze_emb=False,
+                 attention_dim=100, use_embedding=True, embedding_dim=100, use_fasttext=False, freeze_emb=False,
                  max_grad_norm=5, rnn_cell_type='LSTM', max_timesteps=31, use_bow=False, vocab_size=-1,
                  learning_rate=0.001, batch_size=100, n_epochs=800, log_interval=200, store_model=True, ckpt_dir=None,
                  restore=True, store_dir="/data/rali7/Tmp/solimanz/data/models/", log_dir=".log/", name='', emb_path=''):
@@ -30,7 +30,7 @@ class Model:
         self.n_titles = n_titles
         self.n_epochs = n_epochs
         self.use_embedding= use_embedding
-        self.use_fasttext = use_fasttex
+        self.use_fasttext = use_fasttext
         self.freeze_emb = freeze_emb
         self.rnn_cell_type = rnn_cell_type
         self.emb_dim = embedding_dim
@@ -51,9 +51,9 @@ class Model:
         self.name = name
         self.hparams = f"{name}_classif_use_bow={use_bow}_vocab={vocab_size}_title_seq_{rnn_cell_type}_{num_layers}_" \
                        f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_" \
-                       f"fasttext={use_fasttex}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
+                       f"fasttext={use_fasttext}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
         self.checkpoint_dir = os.path.join(self.store_dir, f"{self.hparams}")
-
+        print(self.hparams)
         self.build_model()
 
     def build_model(self):
@@ -415,10 +415,8 @@ class Model:
             print(f"Size of dataset: {len(self.test_data)}")
             print(f"Batch Size: {self.batch_size}")
             
-            #test_batcher.batch_num = 145
-            test_batcher.batch_num = 121
 
-            for tb in range(121, test_batcher.max_batch_num):
+            for tb in range(test_batcher.max_batch_num):
 
                 print(f"Batch #{tb}")
                 with tf.device("/cpu:0"):
@@ -433,8 +431,8 @@ class Model:
                                 })
 
                 np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
-                #np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
-                np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
+                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
+                #np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
                 #np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
 
     def save(self, sess, checkpoint_dir, step):
