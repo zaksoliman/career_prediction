@@ -42,7 +42,7 @@ def main():
     n_layer = 1
     n_epochs = 1000
     lr = 0.001
-    batch_size = 200
+    batch_size = 1000
 
     seq_model = Model(
         name=model_names[ds],

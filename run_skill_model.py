@@ -35,7 +35,7 @@ if __name__ == '__main__':
         "use_bow": False,
         "vocab_size": -1,
         "learning_rate": 0.001,
-        "batch_size": 200,
+        "batch_size": 1000,
         "n_epochs": 1000,
         "log_interval": 100,
         "n_filters": 2,
@@ -72,5 +72,5 @@ if __name__ == '__main__':
     elif model and args.task =='test':
         model.test()
     elif model and args.task =='tsne':
-        model.tSNE(args.dataset, args.representation)
+        model.tSNE(args.dataset, 'fasttext')
 

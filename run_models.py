@@ -1,7 +1,7 @@
 from helpers.loader import load_data
 import argparse
-#from prediction_models.title_seq_rnn import Model
-from prediction_models.lstm_rnn_classifier import Model
+from prediction_models.title_seq_rnn import Model
+#from prediction_models.lstm_rnn_classifier import Model
 from prediction_models.MLP import FeedFowardModel
 from helpers.batcher import Batcher, BOW_Batcher
 import numpy as np
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         "use_dropout": True,
         "num_layers": 1,
         "keep_prob": 0.5,
-        "hidden_dim": 250, #50,
+        "hidden_dim": 50,
         "use_attention": False,
         "attention_dim": 100,
         "use_embedding": True,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         "use_bow": False,
         "vocab_size": -1,
         "learning_rate": 0.001,
-        "batch_size": 200,
+        "batch_size": 1000,
         "n_epochs": 1000,
         "log_interval": 100,
         "store_model": True,

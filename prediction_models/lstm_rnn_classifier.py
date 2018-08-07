@@ -384,7 +384,7 @@ class Model:
 
         if self.n_titles == 551:
             path = os.path.join(base_path, 'top550', folder)
-        elif self.n_titles == 7003:
+        elif self.n_titles >= 7003:
             path = os.path.join(base_path, 'reduced7k', folder)
         else:
             print("Number of job title labels doesn't match 550 or 7000")

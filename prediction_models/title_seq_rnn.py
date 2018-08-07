@@ -435,7 +435,7 @@ class Model:
 
         if self.n_titles == 551:
             path = os.path.join(base_path, 'top550', folder)
-        elif self.n_titles == 7003:
+        elif self.n_titles >= 7003:
             path = os.path.join(base_path, 'reduced7k', folder)
         else:
             print("Number of job title labels doesn't match 550 or 7000")
@@ -481,10 +481,7 @@ class Model:
                                 })
 
                 np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), preds)
-                np.save(os.path.join(path, 'hidden', f'hidden_batch_{tb}.npy'), outputs)
                 np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), test_seq_lengths)
-                np.save(os.path.join(path, 'targets', f'targets_batch_{tb}.npy'), test_target)
-                #np.save(os.path.join(path, 'inputs', f'inputs_batch_{tb}.npy'), test_title_seq)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):

@@ -60,6 +60,8 @@ class Model:
         self.n_filters = n_filters
         self.kernel_sizes = kernel_sizes
         self.name = name
+        #title_emb_and_skills_v2_classif_vocab=-1_1_layers_cell_lr_0.001_use_emb=True_emb_dim=300_n_filters=2_kernels=3fasttext=True_freeze_emb=False_hdim=100_dropout=0.5_data_size=670328
+
         self.hparams = f"{name}_v2_classif_vocab={vocab_size}_{num_layers}_" \
                        f"layers_cell_lr_0.001_use_emb={use_embedding}_emb_dim={embedding_dim}_n_filters={n_filters}_kernels={len(kernel_sizes)}" \
                        f"fasttext={use_fasttext}_freeze_emb={freeze_emb}_hdim={hidden_dim}_dropout={keep_prob}_data_size={len(self.train_data)}"
@@ -183,7 +185,7 @@ class Model:
         c_state = tf.layers.dense(inputs=skill_context, units=self.hidden_dim, activation=tf.nn.relu)
         m_state = tf.layers.dense(inputs=skill_context, units=self.hidden_dim, activation=tf.nn.relu)
         init_states = tf.contrib.rnn.LSTMStateTuple(c_state, m_state)
-
+        self.init_s = init_states
 
         #########
         #  RNN  #
@@ -572,7 +574,8 @@ class Model:
 
     def test(self):
 
-        base_path = "/data/rali7/Tmp/solimanz/data/model_predictions/lstm_cnn_predictions"
+        base_path = "/data/rali7/Tmp/solimanz/data/lstm_cnn_predictions"
+        tsne_path = "/data/rali7/Tmp/solimanz/data/tSNE"
 
         if self.n_titles == 551:
             path = os.path.join(base_path, 'top550')
@@ -610,7 +613,7 @@ class Model:
                 with tf.device("/cpu:0"):
                     title_seq, seq_lengths, target, skills = test_batcher.next()
 
-                pred = sess.run([self.prediction],
+                pred, skillset, output, prev_states = sess.run([self.prediction, self.init_s, self.output, self.prev_states],
                                 {
                                     self.titles_input_data: title_seq,
                                     self.seq_lengths: seq_lengths,
@@ -619,8 +622,11 @@ class Model:
                                     self.dropout: 1.0
                                 })
 
-                np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
-                np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), seq_lengths)
+                #np.save(os.path.join(path, 'predictions', f'predictions_batch_{tb}.npy'), pred[0])
+                #np.save(os.path.join(path, 'seq_lengths', f'seq_lengths_batch_{tb}.npy'), seq_lengths)
+                np.save(os.path.join(tsne_path, f'skillset_{tb}.npy'), skillset)
+                np.save(os.path.join(tsne_path, f'output_{tb}.npy'), output)
+                np.save(os.path.join(tsne_path, f'state_{tb}.npy'), prev_states)
 
     def save(self, sess, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
@@ -657,9 +663,11 @@ class Model:
             tvars = tf.trainable_variables()
 
             graph = tf.get_default_graph()
+            print([v.name for v in tvars])
+            job_emb = [graph.get_tensor_by_name(v.name).eval() for v in tvars if v.name == "title_embedding:0"][0]
+            skill_emb = [graph.get_tensor_by_name(v.name).eval() for v in tvars if v.name == "skill_embedding:0"][0]
 
-            job_emb = [graph.get_tensor_by_name(v.name).eval() for v in tvars if v.name == "title_embeddings:0"][0]
-
-            np.save(f"/data/rali7/Tmp/solimanz/data/embs/{dataset}/{name}_emb.npy", job_emb)
+            np.save(f"/data/rali7/Tmp/solimanz/data/tSNE/{name}_job_title_emb.npy", job_emb)
+            np.save(f"/data/rali7/Tmp/solimanz/data/tSNE/{name}_skills_emb.npy", job_emb)
 
 
