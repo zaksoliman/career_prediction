@@ -8,3 +8,6 @@ class LSTM_RNN(nn.Module):
 
     def forward(self, *input):
         pass
+
+    def init_hidden(self):
+        pass
