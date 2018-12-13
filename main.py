@@ -1,110 +1,51 @@
-from prediction_models.title_seq_rnn import Model as simple_model
-from prediction_models.bow_lstm import Model as bow_model
-from prediction_models.multi_label_fasttext import  Model as multi_label_model
 from helpers.loader import load_data
-import sys
+import argparse
+from prediction_models.title_seq_rnn import Model
+from helpers.batcher import Batcher
+import numpy as np
+import os
 
-def main():
 
-    seq_model = None
-    ds = sys.argv[1]
-    #model = sys.argv[1]
+if __name__ == '__main__':
+    path = f"/data/rali7/Tmp/solimanz/LBJ/dataset"
+    emb_path = os.path.join(path, 'embeddings_reduced.npy')
 
-    model_names = {
-        '1': 'top7000',
-        '2': 'top7000_start_tags',
-        '3': 'top7000_bow_fixed',
-        '4': 'bow_durations_v2',
-        '5': 'multi_fasttext',
-        '6': 'big_multi_ft'
+    title_to_id, train_data, train_max_seq_len, _, _, _ = load_data(os.path.join(path, 'train', 'train.json'))
+    _, valid_data, valid_max_seq_len, _, _, _ = load_data(os.path.join(path, 'valid', 'valid.json'))
+
+    config = {
+        "train_data": train_data,
+        "test_data": valid_data,
+        "batcher": Batcher,
+        "n_titles":len(title_to_id),
+        "max_timesteps": max(train_max_seq_len, valid_max_seq_len),
+        "use_dropout": True,
+        "num_layers": 1,
+        "keep_prob": 0.5,
+        "hidden_dim": 250,
+        "use_attention": False,
+        "attention_dim": 100,
+        "use_embedding": True,
+        "embedding_dim": 300,
+        "use_fasttext": True,
+        "freeze_emb": False,
+        "max_grad_norm": 5,
+        "rnn_cell_type": 'LSTM',
+        "use_bow": False,
+        "vocab_size": -1,
+        "learning_rate": 0.001,
+        "batch_size": 200,
+        "n_epochs": 1000,
+        "log_interval": 100,
+        "store_model": True,
+        "restore": True,
+        "store_dir": "/data/rali7/Tmp/solimanz/data/models/",
+        "log_dir": ".log/",
+        "name": "CANAI",
+        "emb_path": emb_path
     }
-    dataset_names = {
-        '1': 'title_sequences',
-        '2': 'title_sequences',
-        '3': 'title_sequences',
-        '4': 'title_sequences_durations',
-        '5': 'title_embedding_sequences_multi_label',
-        '6': 'big_title_embedding_sequences_multi_label'
-    }
 
-    path = f"/data/rali7/Tmp/solimanz/data/datasets/top7000/{ds}/{dataset_names[ds]}.json"
+    model = Model(**config)
+    model.train()
 
-    if ds in "12":
-        mapping, train_data, test_data, max_seq_len = load_data(path)
-        seq_model = simple_model(
-            name=model_names[ds],
-            train_data=train_data,
-            test_data=test_data,
-            embedding_dim=500,
-            n_titles=len(mapping),
-            max_timesteps=max_seq_len,
-            class_mapping=mapping,
-            num_layers=1,
-            n_epochs=800,
-            learning_rate=0.01,
-            store_model=True,
-            restore=True
-        )
 
-    elif ds in "34":
-        title_id, train_inputs, train_targets, test_inputs, test_targets, vocab_id, max_seq_len = load_data(path, bow=True)
-        seq_model = bow_model(
-            name=model_names[ds],
-            train_inputs=train_inputs,
-            train_targets=train_targets,
-            test_inputs=test_inputs,
-            test_targets=test_targets,
-            embedding_dim=100,
-            n_titles=len(title_id),
-            vocab_size=len(vocab_id),
-            max_timesteps=max_seq_len,
-            num_layers=1,
-            n_epochs=1500,
-            learning_rate=0.001,
-            batch_size=100
-        )
-    elif ds in "5":
-        print("Multi label model selected...")
-        title_id, train_inputs, train_targets, test_inputs, test_targets, token_id, emb_dim, max_seq_len = load_data(path, multi=True)
-        seq_model = multi_label_model(
-            name=model_names[ds],
-            train_inputs=train_inputs,
-            train_targets=train_targets,
-            test_inputs=test_inputs,
-            test_targets=test_targets,
-            embedding_dim=emb_dim,
-            n_titles=len(title_id),
-            n_tokens=len(token_id),
-            max_timesteps=max_seq_len,
-            num_layers=1,
-            freeze_emb=False,
-            n_epochs=1500,
-            learning_rate=0.001,
-            batch_size=100
-        )
-    elif ds in "6":
-        print("Big Multi label model selected...")
-        title_id, train_inputs, train_targets, test_inputs, test_targets, token_id, emb_dim, max_seq_len = load_data(path, multi=True)
-        seq_model = multi_label_model(
-            name=model_names[ds],
-            train_inputs=train_inputs,
-            train_targets=train_targets,
-            test_inputs=test_inputs,
-            test_targets=test_targets,
-            embedding_dim=emb_dim,
-            emb_path="/data/rali7/Tmp/solimanz/data/datasets/6/embeddings_big.npy",
-            n_titles=len(title_id),
-            n_tokens=len(token_id),
-            max_timesteps=max_seq_len,
-            num_layers=1,
-            freeze_emb=True,
-            n_epochs=1500,
-            learning_rate=0.01,
-            batch_size=100
-        )
-
-    if seq_model:
-        seq_model.train()
-
-if __name__ == "__main__":
-    main()
